@@ -11,7 +11,7 @@ import Data.Complex
 
 data Token = T_Identifier String
            | T_Bool Bool
-           | T_Number S_Number
+           | T_Number I_Number
            | T_Character Char
            | T_String String
            | T_LParen
@@ -33,26 +33,50 @@ delimits :: String -> Bool
 delimits "" = True
 delimits (c:s') = isSpace c || c `elem` special_delimiters
 
-lex :: String -> [Token]
-lex "" = []
-lex s@(c:s') = tok : lex rest
+parse_rest :: String -> Maybe (Token, String)
+parse_rest s@(c:s')
+    | isLetter c || c `elem` special_initial = let (i, s'') = break (not . (\c -> isLetter c || isDigit c || c `elem` special_initial || c `elem` special_subsequent)) s' in Just (T_Identifier i, s'')
+    | delimits s' && c `elem` ".+-" = case c of
+        '.' -> Just (T_Dot, s')
+        '+' -> Just (T_Identifier "+", s')
+        '-' -> Just (T_Identifier "-", s')
+    | c == '.' && (head s' == '.') && (tail s' /= "") && ((head . tail $ s') == '.') = Just (T_Identifier "...", tail . tail $ s')
+    | otherwise = parse_number s -- assume number
+
+parse_string :: String -> Maybe (Token, String)
+parse_string "" = fail "unexpected end of input"
+parse_string ('"':s') = Just (T_String "", s')
+parse_string ('\\':s') = let (T_String sr, s'') = parse_string . tail $ s' in Just (T_String (head s' : sr), s'')
+parse_string (c:s') = let (T_String sr, s'') = parse_string s' in Just (T_String (c : sr), s'')
+
+data Radix = Decimal | Binary | Octal | Hexadecimal
+    deriving (Enum, Show)
+
+parse_number_prefix :: String -> (Radix, String)
+parse_number_prefix '#':'i':s' = parse_number_prefix s'
+parse_number_prefix '#':'e':s' = parse_number_prefix s'
+parse_number_prefix '#':'d':s' = let (_, s'') = parse_number_prefix s' in (Decimal, s'')
+parse_number_prefix '#':'b':s' = let (_, s'') = parse_number_prefix s' in (Binary, s'')
+parse_number_prefix '#':'o':s' = let (_, s'') = parse_number_prefix s' in (Octal, s'')
+parse_number_prefix '#':'x':s' = let (_, s'') = parse_number_prefix s' in (Hexadecimal, s'')
+parse_number_prefix s = (Decimal, s)
+
+parse_real :: String -> Maybe (Token, String)
+parse_real '+':s' = parse_ureal s'
+parse_real '-':s' = fmap (\(T_Number num) -> (T_Number negate num)) parse_ureal s'
+
+parse_number :: String -> Maybe (Token, String)
+parse_number '+':'i':s' = Just (T_Number 0 :+ 1)
+parse_number '-':'i':s' = Just (T_Number 0 :+ -1)
+parse_number s =
     where
-        parse_rest :: String -> (Token, String)
-        parse_rest (c:s')
-            | isSpace c = parse_rest . snd . break isSpace $ s'
-            | isLetter c || c `elem` special_initial = let (i, s'') = break (\c -> isLetter c || isDigit c || c `elem` special_initial || c `elem` special_subsequent) s' in (T_Identifier i, s'')
-            | delimits s' = case c of
-                '.' -> (T_Dot, s')
-                '+' -> (T_Identifier "+", s')
-                '-' -> (T_Identifier "-", s')
-                _ -> error ("invalid character " ++ [c])
-            | c == '.' && (head s' == '.') && (tail s' /= "") && ((head . tail $ s') == '.') = (T_Identifier "...", tail . tail $ s')
-            | otherwise = parse_number s -- assume number
-        parse_string "" = error "unexpected end of input"
-        parse_string ('"':s') = (T_String "", s')
-        parse_string ('\\':s') = let (T_String sr, s'') = parse_string . tail $ s' in (T_String (head s' : sr), s'')
-        parse_string (c:s') = let (T_String sr, s'') = parse_string s' in (T_String (c : sr), s'')
-        parse_number t = (T_Number (C_ExactNum (5 :+ 5)), tail t)
+        (radix, s') = parse_number_prefix s
+
+lex :: String -> [Token]
+lex s1 = if s == "" then [] else tok : lex rest
+    where
+        s = snd . break (not . isSpace) $ s1
+        (c:s') = s
         (tok, rest) = case c of
             '(' -> (T_LParen, s')
             ')' -> (T_RParen, s')
