@@ -11,6 +11,7 @@ import Data.Complex
 import Data.Ratio
 import Data.Maybe
 import Text.Read(readMaybe)
+import Control.Monad
 
 data Token = T_Identifier String
            | T_Bool Bool
@@ -68,7 +69,6 @@ parse_number_prefix ('#':'o':s') = let (_, s'') = parse_number_prefix s' in (Oct
 parse_number_prefix ('#':'x':s') = let (_, s'') = parse_number_prefix s' in (Hexadecimal, s'')
 parse_number_prefix s = (Decimal, s)
 
-
 parse_real :: String -> Maybe (Double, String)
 parse_real ('+':s') = parse_ureal s'
 parse_real ('-':s') = fmap (\(a, b) -> (negate a, b)) $ parse_ureal s'
@@ -80,15 +80,16 @@ parse_ureal s = if p1 /= "" && s' /= "" && head s' == '/' then do
         p2i <- (readMaybe p2 :: Maybe Integer)
         return (fromRational (p1i % p2i), sp)
     else do
+        guard $ p1 /= "" || hasdp
         let str = ((if p1 == "" then "0" else p1) ++ "." ++ dp ++ "e" ++ ex)
         result <- (readMaybe str :: Maybe Double)
         return (result, s''')
     where
         (p1, s') = parse_uint s
         (p2, sp) = parse_uint (tail s')
-        (dp, s'') = case s' of
-            ('.':d) -> parse_uint d
-            something -> ("0", something)
+        (dp, s'', hasdp) = case s' of
+            ('.':d) -> let (trail, rest) = parse_uint d in if trail == "" then ("0", rest, False) else (trail, rest, True)
+            something -> ("0", something, False)
         (ex, s''') = case s'' of
             ('e':d) -> parse_int d
             ('E':d) -> parse_int d
@@ -103,11 +104,25 @@ parse_uint :: String -> (String, String)
 parse_uint = break (not . isDigit) -- TODO: handle hex
 
 parse_number :: String -> Maybe (Token, String)
-parse_number ('+':'i':s') = Just (T_Number (0 :+ 1), s')
-parse_number ('-':'i':s') = Just (T_Number (0 :+ (-1)), s')
-parse_number s = Just (T_LParen, s)
-    where
-        (radix, s') = parse_number_prefix s
+parse_number s = do
+    let (radix, s') = parse_number_prefix s
+    case parse_real s' of
+        Just (n1, s'') ->
+            case s'' of
+                '@':s''' -> do
+                    (n2, s'''') <- parse_real s'''
+                    return (T_Number (n1 :+ n2), s'''')
+                '+':s''' -> case parse_real s''' of
+                    Just (n2, 'i':s'''') -> return (T_Number (n1 :+ n2), s'''')
+                    _ -> if head s''' == 'i' then return (T_Number (n1 :+ 1), tail s''') else return (T_Number (n1 :+ 0), s'')
+                '-':s''' -> case parse_real s''' of
+                    Just (n2, 'i':s'''') -> return (T_Number (n1 :+ (negate n2)), s'''')
+                    _ -> if head s''' == 'i' then return (T_Number (n1 :+ (-1)), tail s''') else return (T_Number (n1 :+ 0), s'')
+                'i':s''' -> return (T_Number (0 :+ n1), s''')
+                _ -> return (T_Number (n1 :+ 0), s'')
+        Nothing -> do
+            guard ((head s') `elem` "+-" && (head . tail $ s') == 'i')
+            return (T_Number (0 :+ (if head s' == '+' then 1 else -1)), tail . tail $ s')
 
 lex :: String -> [Token]
 lex s1 = if s == "" then [] else tok : lex rest
