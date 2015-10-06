@@ -10,6 +10,7 @@ import Types
 import Data.Complex
 import Data.Ratio
 import Data.Maybe
+import Data.List
 import Text.Read(readMaybe)
 import Control.Monad
 
@@ -58,7 +59,27 @@ parse_string (c:s') = do
     Just (T_String (c : sr), s'')
 
 data Radix = Decimal | Binary | Octal | Hexadecimal
-    deriving (Enum, Show)
+    deriving (Enum, Show, Eq)
+
+maybeBinaryDigit :: Char -> Maybe Integer
+maybeBinaryDigit '0' = Just 0
+maybeBinaryDigit '1' = Just 1
+maybeBinaryDigit _ = Nothing
+
+decodeInteger :: Radix -> String -> Maybe Integer
+decodeInteger Decimal = readMaybe
+decodeInteger Octal = readMaybe . ("0o"++)
+decodeInteger Hexadecimal = readMaybe . ("0x"++)
+decodeInteger Binary = foldl' (\a b -> do
+    acc <- a
+    dig <- maybeBinaryDigit b
+    return ((acc * 2) + dig)) (Just 0) -- acc * 2 + dig
+
+digits :: Radix -> String
+digits Decimal = "0123456789"
+digits Binary = "01"
+digits Octal = "01234567"
+digits Hexadecimal = "0123456789AaBbCcDdEeFf"
 
 parse_number_prefix :: String -> (Radix, String)
 parse_number_prefix ('#':'i':s') = parse_number_prefix s'
@@ -69,53 +90,58 @@ parse_number_prefix ('#':'o':s') = let (_, s'') = parse_number_prefix s' in (Oct
 parse_number_prefix ('#':'x':s') = let (_, s'') = parse_number_prefix s' in (Hexadecimal, s'')
 parse_number_prefix s = (Decimal, s)
 
-parse_real :: String -> Maybe (Double, String)
-parse_real ('+':s') = parse_ureal s'
-parse_real ('-':s') = fmap (\(a, b) -> (negate a, b)) $ parse_ureal s'
-parse_real s = parse_ureal s
+parse_real :: Radix -> String -> Maybe (Double, String)
+parse_real r ('+':s') = parse_ureal r s'
+parse_real r ('-':s') = fmap (\(a, b) -> (negate a, b)) $ parse_ureal r s'
+parse_real r s = parse_ureal r s
 
-parse_ureal :: String -> Maybe (Double, String)
-parse_ureal s = if p1 /= "" && s' /= "" && head s' == '/' then do
-        p1i <- (readMaybe p1 :: Maybe Integer)
-        p2i <- (readMaybe p2 :: Maybe Integer)
+parse_ureal :: Radix -> String -> Maybe (Double, String)
+parse_ureal r s = if p1 /= "" && s' /= "" && head s' == '/' then do
+        p1i <- decodeInteger r p1
+        p2i <- decodeInteger r p2
         return (fromRational (p1i % p2i), sp)
+    else if (s' == "" || (not hasdp && (ex == "0" || r /= Decimal))) then do
+        guard $ p1 /= ""
+        result <- decodeInteger r p1
+        return (fromIntegral result, s')
     else do
-        guard $ p1 /= "" || hasdp
+        guard $ hasdp || p1 /= ""
+        guard $ r == Decimal
         let str = ((if p1 == "" then "0" else p1) ++ "." ++ dp ++ "e" ++ ex)
         result <- (readMaybe str :: Maybe Double)
         return (result, s''')
     where
-        (p1, s') = parse_uint s
-        (p2, sp) = parse_uint (tail s')
+        (p1, s') = parse_uint r s
+        (p2, sp) = parse_uint r (tail s')
         (dp, s'', hasdp) = case s' of
-            ('.':d) -> let (trail, rest) = parse_uint d in if trail == "" then ("0", rest, False) else (trail, rest, True)
+            ('.':d) -> let (trail, rest) = parse_uint r d in if trail == "" then ("0", rest, False) else (trail, rest, True)
             something -> ("0", something, False)
         (ex, s''') = case s'' of
-            ('e':d) -> parse_int d
-            ('E':d) -> parse_int d
+            ('e':d) -> parse_int r d
+            ('E':d) -> parse_int r d
             something -> ("0", something)
 
-parse_int :: String -> (String, String)
-parse_int ('+':s') = let (n, s'') = parse_uint s' in ('+':n, s'')
-parse_int ('-':s') = let (n, s'') = parse_uint s' in ('-':n, s'')
-parse_int s = parse_uint s
+parse_int :: Radix -> String -> (String, String)
+parse_int r ('+':s') = let (n, s'') = parse_uint r s' in ('+':n, s'')
+parse_int r ('-':s') = let (n, s'') = parse_uint r s' in ('-':n, s'')
+parse_int r s = parse_uint r s
 
-parse_uint :: String -> (String, String)
-parse_uint = break (not . isDigit) -- TODO: handle hex
+parse_uint :: Radix -> String -> (String, String)
+parse_uint r = break (not . (`elem` (digits r)))
 
 parse_number :: String -> Maybe (Token, String)
 parse_number s = do
     let (radix, s') = parse_number_prefix s
-    case parse_real s' of
+    case parse_real radix s' of
         Just (n1, s'') ->
             case s'' of
                 '@':s''' -> do
-                    (n2, s'''') <- parse_real s'''
+                    (n2, s'''') <- parse_real radix s'''
                     return (T_Number (n1 :+ n2), s'''')
-                '+':s''' -> case parse_real s''' of
+                '+':s''' -> case parse_real radix s''' of
                     Just (n2, 'i':s'''') -> return (T_Number (n1 :+ n2), s'''')
                     _ -> if head s''' == 'i' then return (T_Number (n1 :+ 1), tail s''') else return (T_Number (n1 :+ 0), s'')
-                '-':s''' -> case parse_real s''' of
+                '-':s''' -> case parse_real radix s''' of
                     Just (n2, 'i':s'''') -> return (T_Number (n1 :+ (negate n2)), s'''')
                     _ -> if head s''' == 'i' then return (T_Number (n1 :+ (-1)), tail s''') else return (T_Number (n1 :+ 0), s'')
                 'i':s''' -> return (T_Number (0 :+ n1), s''')
