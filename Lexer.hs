@@ -1,6 +1,6 @@
 module Lexer
 ( lex
-, Token
+, Token(..)
 ) where
 
 import Prelude hiding (lex)
