@@ -9,7 +9,7 @@ import Data.Complex
 type I_Number = Complex Double
 
 data S_Object = C_Number I_Number
-              | C_List S_Object S_Object
+              | C_List S_List
               | C_Bool Bool
               | C_Char Char
               | C_Symbol String

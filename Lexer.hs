@@ -40,7 +40,7 @@ delimits (c:s') = isSpace c || c `elem` special_delimiters
 
 parse_rest :: String -> (Token, String)
 parse_rest s@(c:s')
-    | isLetter c || c `elem` special_initial = let (i, s'') = break (not . (\c -> isLetter c || isDigit c || c `elem` special_initial || c `elem` special_subsequent)) s' in (T_Identifier i, s'')
+    | isLetter c || c `elem` special_initial = let (i, s'') = break (not . (\c -> isLetter c || isDigit c || c `elem` special_initial || c `elem` special_subsequent)) s' in (T_Identifier (c:i), s'')
     | delimits s' && c `elem` ".+-" = case c of
         '.' -> (T_Dot, s')
         '+' -> (T_Identifier "+", s')
