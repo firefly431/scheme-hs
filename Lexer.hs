@@ -51,12 +51,12 @@ parse_rest s@(c:s')
 parse_string :: String -> Maybe (Token, String)
 parse_string "" = fail "unexpected end of input"
 parse_string ('"':s') = Just (T_String "", s')
-parse_string ('\\':s') = do
+parse_string ('\\':s') = do -- TODO: escapes
     (T_String sr, s'') <- parse_string . tail $ s'
-    Just (T_String (head s' : sr), s'')
+    return (T_String (head s' : sr), s'')
 parse_string (c:s') = do
     (T_String sr, s'') <- parse_string s'
-    Just (T_String (c : sr), s'')
+    return (T_String (c : sr), s'')
 
 data Radix = Decimal | Binary | Octal | Hexadecimal
     deriving (Enum, Show, Eq)
