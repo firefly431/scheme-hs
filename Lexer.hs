@@ -27,7 +27,12 @@ data Token = T_Identifier String
            | T_Comma
            | T_CommaAt
            | T_Dot
+           | T_BeginComment
+           | T_EndComment
+           | T_CommentOne
            deriving (Show)
+
+-- TODO: implement comments
 
 special_initial = "!$%&*/:<=>?^_~"
 special_subsequent = "+-.@"
