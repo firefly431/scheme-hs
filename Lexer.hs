@@ -56,9 +56,24 @@ parse_rest s@(c:s')
 parse_string :: String -> Maybe (Token, String)
 parse_string "" = fail "unexpected end of input"
 parse_string ('"':s') = Just (T_String "", s')
-parse_string ('\\':s') = do -- TODO: escapes
-    (T_String sr, s'') <- parse_string . tail $ s'
-    return (T_String (head s' : sr), s'')
+parse_string ('\\':s') = do
+    (T_String sr, s'') <- parse_string rest
+    case c of
+        Just ch -> return (T_String (ch : sr), s'')
+        Nothing -> return (T_String sr, s'')
+    where
+        (c, rest) = case s' of
+            'a':s'' -> (Just '\a', s'')
+            'b':s'' -> (Just '\b', s'')
+            't':s'' -> (Just '\t', s'')
+            'n':s'' -> (Just '\n', s'')
+            'v':s'' -> (Just '\v', s'')
+            'f':s'' -> (Just '\f', s'')
+            'r':s'' -> (Just '\r', s'')
+            '"':s'' -> (Just '"', s'')
+            '\\':s'' -> (Just '\\', s'')
+            'x':s'' -> let (code, s''') = break (==';') s'' in (fmap chr . readMaybe . ("0x"++) $ code, tail s''')
+            s'' -> (Nothing, snd . break (not . isSpace) $ s'')
 parse_string (c:s') = do
     (T_String sr, s'') <- parse_string s'
     return (T_String (c : sr), s'')
