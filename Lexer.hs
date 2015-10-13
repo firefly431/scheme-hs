@@ -171,17 +171,19 @@ parse_number s = do
             return (T_Number (0 :+ (if head s' == '+' then 1 else -1)), tail . tail $ s')
 
 skipComment :: String -> String
-skipComment ('-':'-':s') = snd . break (=='\n') $ s'
+skipComment ('-':'-':s') = tail . snd . break (=='\n') $ s'
 skipComment ('#':'|':s') = skipBlock s''
     where
         s'' = skipComment s'
         skipBlock ('|':'#':s''') = s'''
         skipBlock (c:s''') = skipBlock s'''
+skipComment s = s
 
 lex :: String -> [Token]
 lex s1 = if s == "" then [] else tok : lex rest
     where
-        s@(c : s') = skipComment . snd . break (not . isSpace) $ s1
+        s = skipComment . snd . break (not . isSpace) $ s1
+        (c:s') = s
         (tok, rest) = case c of
             '(' -> (T_LParen, s')
             ')' -> (T_RParen, s')
