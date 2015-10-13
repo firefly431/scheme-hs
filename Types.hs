@@ -36,7 +36,7 @@ stringEscape ('\'':s') = "\\'" ++ stringEscape s'
 stringEscape ('\\':s') = "\\\\" ++ stringEscape s'
 stringEscape (c:s')
     | n >= 0x20 && n <= 0x7E = c:stringEscape s'
-    | otherwise = "\\x" ++ (showHex n (stringEscape s'))
+    | otherwise = "\\x" ++ (showHex n (stringEscape s')) ++ ";"
     where n = ord c
 stringEscape "" = ""
 
