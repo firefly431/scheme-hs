@@ -170,11 +170,18 @@ parse_number s = do
             guard ((head s') `elem` "+-" && (head . tail $ s') == 'i')
             return (T_Number (0 :+ (if head s' == '+' then 1 else -1)), tail . tail $ s')
 
+skipComment :: String -> String
+skipComment ('-':'-':s') = snd . break (=='\n') $ s'
+skipComment ('#':'|':s') = skipBlock s''
+    where
+        s'' = skipComment s'
+        skipBlock ('|':'#':s''') = s'''
+        skipBlock (c:s''') = skipBlock s'''
+
 lex :: String -> [Token]
 lex s1 = if s == "" then [] else tok : lex rest
     where
-        s = snd . break (not . isSpace) $ s1
-        (c:s') = s
+        s@(c : s') = skipComment . snd . break (not . isSpace) $ s1
         (tok, rest) = case c of
             '(' -> (T_LParen, s')
             ')' -> (T_RParen, s')
@@ -190,6 +197,7 @@ lex s1 = if s == "" then [] else tok : lex rest
                     's':'p':'a':'c':'e':s''' ->  (T_Character ' ', s''')
                     'n':'e':'w':'l':'i':'n':'e':s''' -> (T_Character '\n', s''')
                     c:s''' -> (T_Character c, s''')
+                ';':s'' -> (T_CommentOne, s'')
                 x:s'' -> if x `elem` number_hashes then fromJust . parse_number $ s else error "unknown hash"
                 "" -> error "unexpected end of input"
             _ -> parse_rest (c:s')
