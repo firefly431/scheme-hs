@@ -30,7 +30,7 @@ data Token = T_Identifier String
            | T_BeginComment
            | T_EndComment
            | T_CommentOne
-           deriving (Show)
+           deriving (Show, Eq)
 
 -- TODO: implement comments
 
