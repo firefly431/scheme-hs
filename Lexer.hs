@@ -172,17 +172,19 @@ parse_number s = do
 
 skipComment :: String -> String
 skipComment ('-':'-':s') = tail . snd . break (=='\n') $ s'
-skipComment ('#':'|':s') = skipBlock s''
+skipComment ('#':'|':s') = skipBlock 1 s'
     where
-        s'' = skipComment s'
-        skipBlock ('|':'#':s''') = s'''
-        skipBlock (c:s''') = skipBlock s'''
+        skipBlock 0 s = s
+        skipBlock n ('#':'|':s'') = skipBlock (n + 1) s''
+        skipBlock n ('|':'#':s'') = skipBlock (n - 1) s''
+        skipBlock n (c:s'') = skipBlock n s''
 skipComment s = s
 
 lex :: String -> [Token]
 lex s1 = if s == "" then [] else tok : lex rest
     where
-        s = skipComment . snd . break (not . isSpace) $ s1
+        v = iterate (skipComment . snd . break (not . isSpace)) s1
+        s = fst . head . dropWhile (uncurry (/=)) $ zip v (tail v)
         (c:s') = s
         (tok, rest) = case c of
             '(' -> (T_LParen, s')
