@@ -35,3 +35,18 @@ parse_one (T_LParen : rest) = parse_list_body rest
 parse_one (T_Quote : rest) = do
     (obj, rest) <- parse_one rest
     return (C_List $ C_Cons (C_Symbol "quote") $ C_List $ C_Cons obj $ C_List C_EmptyList, rest)
+parse_one (T_Backquote : rest) = do
+    (obj, rest) <- parse_one rest
+    return (C_List $ C_Cons (C_Symbol "quasiquote") $ C_List $ C_Cons obj $ C_List C_EmptyList, rest)
+parse_one (T_Comma : rest) = do
+    (obj, rest) <- parse_one rest
+    return (C_List $ C_Cons (C_Symbol "unquote") $ C_List $ C_Cons obj $ C_List C_EmptyList, rest)
+parse_one (T_CommaAt : rest) = do
+    (obj, rest) <- parse_one rest
+    return (C_List $ C_Cons (C_Symbol "unquote-splicing") $ C_List $ C_Cons obj $ C_List C_EmptyList, rest)
+
+parse_one (T_Identifier x : rest) = Just (C_Symbol x, rest)
+parse_one (T_Bool x : rest) = Just (C_Bool x, rest)
+parse_one (T_Number x : rest) = Just (C_Number x, rest)
+parse_one (T_Character x : rest) = Just (C_Char x, rest)
+parse_one (T_String x : rest) = Just (C_String x, rest)
