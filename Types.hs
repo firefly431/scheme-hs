@@ -46,8 +46,20 @@ displayList (C_Cons x (C_List C_EmptyList)) = display x
 displayList (C_Cons x (C_List l)) = display x ++ " " ++ displayList l
 displayList (C_Cons x y) = display x ++ " . " ++ display y
 
+doubleIsIntegral :: Double -> Bool
+doubleIsIntegral x = (x == (fromInteger . round $ x))
+
+displayReal :: Double -> String
+displayReal x
+    | doubleIsIntegral x = show (round x)
+    | otherwise = show x
+
+displayNumber :: I_Number -> String
+displayNumber (x :+ 0.0) = displayReal x
+displayNumber (x :+ y) = displayReal x ++ "+" ++ displayReal y ++ "i"
+
 display :: S_Object -> String
-display (C_Number x) = show x
+display (C_Number x) = displayNumber x
 display (C_List x) = "(" ++ displayList x ++ ")"
 display (C_Bool True) = "#t"
 display (C_Bool False) = "#f"
