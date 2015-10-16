@@ -168,21 +168,25 @@ parse_number s = do
             guard ((head s') `elem` "+-" && (head . tail $ s') == 'i')
             return (T_Number (0 :+ (if head s' == '+' then 1 else -1)), tail . tail $ s')
 
-skipComment :: String -> String
-skipComment ('-':'-':s') = tail . snd . break (=='\n') $ s'
-skipComment ('#':'|':s') = skipBlock 1 s'
+tailIgnoringEmpty :: [a] -> [a]
+tailIgnoringEmpty [] = []
+tailIgnoringEmpty x = tail x
+
+skipComment :: String -> (String, Bool)
+skipComment ('-':'-':s') = (tailIgnoringEmpty . snd . break (=='\n') $ s', True)
+skipComment ('#':'|':s') = (skipBlock 1 s', True)
     where
         skipBlock 0 s = s
         skipBlock n ('#':'|':s'') = skipBlock (n + 1) s''
         skipBlock n ('|':'#':s'') = skipBlock (n - 1) s''
         skipBlock n (c:s'') = skipBlock n s''
-skipComment s = s
+skipComment s = (s, False)
 
 lex :: String -> [Token]
 lex s1 = if s == "" then [] else tok : lex rest
     where
-        v = iterate (skipComment . snd . break (not . isSpace)) s1
-        s = fst . head . dropWhile (uncurry (/=)) $ zip v (tail v)
+        v = iterate (skipComment . snd . break (not . isSpace) . fst) (s1, True)
+        s = fst . head . dropWhile snd $ v
         (c:s') = s
         (tok, rest) = case c of
             '(' -> (T_LParen, s')
