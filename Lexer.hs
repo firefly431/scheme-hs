@@ -30,8 +30,6 @@ data Token = T_Identifier String
            | T_CommentOne
            deriving (Show, Eq)
 
--- TODO: implement comments
-
 special_initial = "!$%&*/:<=>?^_~"
 special_subsequent = "+-.@"
 special_delimiters = "()\";"
