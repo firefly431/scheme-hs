@@ -68,3 +68,6 @@ display (C_Char ' ') = "#\\space"
 display (C_Char x) = '#' : '\\' : x : ""
 display (C_Symbol x) = x
 display (C_String x) = "\"" ++ (stringEscape x) ++ "\""
+
+undefinedObject :: S_Object
+undefinedObject = S_Bool False
