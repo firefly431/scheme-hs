@@ -22,8 +22,7 @@ data S_Rule = C_Rule S_Pattern S_Pattern
 
 data S_Pattern =
     P_Variable String
-  | P_Literal String
-  | P_Const S_Object
+  | P_Const S_Object -- literal identifier included
   | P_EmptyList
   | P_Cons S_Pattern S_Pattern
   | P_Ellipsis S_Pattern
@@ -31,12 +30,15 @@ data S_Pattern =
 type S_Context = Map.Map String S_Macro
 
 match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String S_Object)
-match_rule obj (C_Rule pattern repl) = fmap ((,) repl) names
-    where
-        names = case pattern of
-            P_Variable name -> -- singleton
-            P_Literal lit -> -- if it matches, Just, else Nothing
+match_rule obj (C_Rule pattern repl) = fmap ((,) repl) $ match_pattern obj pattern
 
+match_pattern :: S_Object -> S_Rule -> Maybe (Map.Map String S_Object)
+match_pattern obj (C_Rule (P_Variable name) repl) = Just $ singleton name obj
+match_pattern obj (C_Rule (P_Const lit) repl)
+    | equal lit obj -> Just empty
+    | othersie -> Nothing
+match_pattern (C_List C_EmptyList) (C_Rule (P_EmptyList) repl) = Just empty
+match_pattern _ (C_Rule (P_EmptyList) repl) = Nothing
 substitute_template :: S_Pattern -> Map.Map String S_Object -> S_Object
 
 base_env :: S_Context
