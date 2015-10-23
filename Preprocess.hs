@@ -36,7 +36,7 @@ match_pattern :: S_Object -> S_Rule -> Maybe (Map.Map String S_Object)
 match_pattern obj (C_Rule (P_Variable name) repl) = Just $ singleton name obj
 match_pattern obj (C_Rule (P_Const lit) repl)
     | equal lit obj -> Just empty
-    | othersie -> Nothing
+    | otherwise -> Nothing
 match_pattern (C_List C_EmptyList) (C_Rule (P_EmptyList) repl) = Just empty
 match_pattern _ (C_Rule (P_EmptyList) repl) = Nothing
 substitute_template :: S_Pattern -> Map.Map String S_Object -> S_Object
