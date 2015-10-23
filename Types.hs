@@ -70,4 +70,4 @@ display (C_Symbol x) = x
 display (C_String x) = "\"" ++ (stringEscape x) ++ "\""
 
 undefinedObject :: S_Object
-undefinedObject = S_Bool False
+undefinedObject = C_Bool False
