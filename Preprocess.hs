@@ -33,12 +33,23 @@ match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String S_Object)
 match_rule obj (C_Rule pattern repl) = fmap ((,) repl) $ match_pattern obj pattern
 
 match_pattern :: S_Object -> S_Rule -> Maybe (Map.Map String S_Object)
-match_pattern obj (C_Rule (P_Variable name) repl) = Just $ singleton name obj
-match_pattern obj (C_Rule (P_Const lit) repl)
+match_pattern obj (P_Variable name) = Just $ singleton name obj
+match_pattern obj (P_Const lit)
     | equal lit obj -> Just empty
     | otherwise -> Nothing
-match_pattern (C_List C_EmptyList) (C_Rule (P_EmptyList) repl) = Just empty
-match_pattern _ (C_Rule (P_EmptyList) repl) = Nothing
+match_pattern (C_List C_EmptyList) P_EmptyList = Just empty
+match_pattern _ P_EmptyList = Nothing
+match_pattern (C_List (C_Cons a b)) rule@(C_Cons c d) = case c of
+    P_Ellipsis c' -> case match_pattern c' a of
+        Just vars -> fmap (unionWith (curry $ C_List . uncurry C_Cons) vars) match_pattern b rule
+        Nothing -> match_pattern b d
+    _ -> do
+        a' <- match_pattern a c
+        b' <- match_pattern b d
+        return $ union a' b'
+match_pattern _ (C_Cons _ _) = Nothing
+match_pattern _ (P_Ellipsis _) = Nothing
+
 substitute_template :: S_Pattern -> Map.Map String S_Object -> S_Object
 
 base_env :: S_Context
