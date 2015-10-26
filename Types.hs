@@ -3,6 +3,9 @@ module Types
 , S_List(..)
 , I_Number
 , display
+, undefinedObject
+, sappend
+, equal
 ) where
 
 import Data.Complex
@@ -71,3 +74,10 @@ display (C_String x) = "\"" ++ (stringEscape x) ++ "\""
 
 undefinedObject :: S_Object
 undefinedObject = C_Bool False
+
+sappend :: S_Object -> S_Object -> S_Object
+sappend (C_List C_EmptyList) b = b
+sappend (C_List (C_Cons a a')) b = C_List $ C_Cons a $ sappend a' b
+
+equal :: S_Object -> S_Object -> Bool
+equal a b = True -- TODO: fix
