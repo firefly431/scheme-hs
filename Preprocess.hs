@@ -1,5 +1,8 @@
 module Preprocess
-(preprocess
+( preprocess
+, preprocess_body
+, base_context
+, S_Program(..)
 ) where
 
 import Types
@@ -17,6 +20,7 @@ data S_Program =
   | P_BuildEmptyList
   | P_BuildList S_Program S_Program
   | P_Undefined
+    deriving (Show)
 
 newtype S_Macro = C_Macro {rules :: [S_Rule]}
 
@@ -63,8 +67,8 @@ substitute_template (P_Cons a b) vars = case a of
     _ -> C_List $ C_Cons (substitute_template a vars) (substitute_template b vars)
 substitute_template (P_Ellipsis _) _ = error "Invalid template"
 
-base_env :: S_Context
-base_env = Map.empty -- TODO: fill
+base_context :: S_Context
+base_context = Map.empty -- TODO: fill
 
 preprocess :: S_Context -> S_Object -> S_Program
 preprocess context x@(C_Number _) = P_Literal x
