@@ -2,6 +2,7 @@ module Types
 ( S_Object(..)
 , S_List(..)
 , I_Number
+, BuiltinFunction(..)
 , display
 , undefinedObject
 , sappend
@@ -14,12 +15,18 @@ import Numeric(showHex)
 
 type I_Number = Complex Double
 
+newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> S_Object }
+
+instance Show BuiltinFunction where
+    show = const "(builtin)"
+
 data S_Object = C_Number I_Number
               | C_List S_List
               | C_Bool Bool
               | C_Char Char
               | C_Symbol String
               | C_String String
+              | C_Builtin BuiltinFunction
               deriving (Show)
 
 data S_List = C_EmptyList
