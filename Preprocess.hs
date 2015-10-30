@@ -105,7 +105,7 @@ process_list context (C_Symbol s) args = case s of
         a -> P_Literal a
     "lambda" -> let (C_List (C_Cons (C_Symbol a) b)) = args in P_Procedure a (preprocess_body context b)
     "if" -> let (C_List (C_Cons a (C_List (C_Cons b c)))) = args in P_Conditional (preprocess context a) (preprocess context b) (preprocess_body context c)
-    "set!" -> let (C_List (C_Cons (C_Symbol s) expr)) = args in P_Assignment s (preprocess context expr)
+    "set!" -> let (C_List (C_Cons (C_Symbol s) expr)) = args in P_Assignment s (preprocess_body context expr)
     name -> case Map.lookup name context of
         Nothing -> P_Call (P_Lookup name) (process_args context args)
         Just macro -> preprocess context $ expand_macro macro (C_List $ C_Cons (C_Symbol name) args)
