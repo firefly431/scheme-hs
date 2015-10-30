@@ -62,7 +62,9 @@ eval env (P_BuildList a b) = do
     a' <- eval env a
     b' <- eval env b
     return $ C_List $ C_Cons a' b'
-eval _ a = lift . lift $ (print a >> return undefinedObject)
+eval _ (P_Undefined) = return undefinedObject
+eval env (P_Assignment var val) = (eval env val) >>= lift . lift . (\val' -> modifyIORef' env (Map.insert var val')) >> return undefinedObject
+eval _ a = lift . lift $ (putStrLn ("Error: unknown program " ++ (show a)) >> return undefinedObject)
 
 baseEnv :: IO Env
 baseEnv = newIORef Map.empty
