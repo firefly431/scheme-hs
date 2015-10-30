@@ -57,6 +57,12 @@ eval env (P_Call f a) = do
     a' <- eval env a
     callFunction f' a'
 eval env (P_Sequence a b) = (eval env a) >> (eval env b)
+eval _ (P_BuildEmptyList) = return $ C_List C_EmptyList
+eval env (P_BuildList a b) = do
+    a' <- eval env a
+    b' <- eval env b
+    return $ C_List $ C_Cons a' b'
+eval _ a = lift . lift $ (print a >> return undefinedObject)
 
 baseEnv :: IO Env
 baseEnv = newIORef Map.empty
@@ -68,11 +74,9 @@ main' env = do
     if line == "quit" then
         return ()
     else do
-        let expr = preprocess base_context . parse $ line
-        result <- runExceptT $ runContT (eval env expr) (print)
-        case result of
-            Left e' -> e' >>= \e -> lift $ lift $ print e
-            Right _ -> lift $ lift $ return ()
+        let expr = preprocess_body base_context . parse $ line
+        runExceptT $ runContT (eval env expr) (lift . putStrLn . display)
+        main' env
 
 main = baseEnv >>= main'
 

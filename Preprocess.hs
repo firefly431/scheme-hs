@@ -90,7 +90,9 @@ parse_transformer a = C_Macro [C_Rule P_EmptyList P_EmptyList] -- TODO: implemen
 preprocess_body :: S_Context -> S_Object -> S_Program
 preprocess_body context (C_List (C_Cons a b)) = case a of
     (C_List (C_Cons (C_Symbol "define-syntax") (C_List (C_Cons (C_Symbol name) (C_List (C_Cons transformer (C_List C_EmptyList))))))) -> preprocess_body (Map.insert name (parse_transformer transformer) context) b
-    a' -> P_Sequence (preprocess context a') $ preprocess_body context b
+    a' -> case b of
+        C_List C_EmptyList -> preprocess context a'
+        b' -> P_Sequence (preprocess context a') $ preprocess_body context b'
 preprocess_body _ _ = P_Undefined
 
 expand_macro :: S_Macro -> S_Object -> S_Object
@@ -98,7 +100,9 @@ expand_macro macro obj = uncurry substitute_template $ head $ mapMaybe (match_ru
 
 process_list :: S_Context -> S_Object -> S_Object -> S_Program
 process_list context (C_Symbol s) args = case s of
-    "quote" -> P_Literal args
+    "quote" -> case args of
+        C_List (C_Cons a _) -> P_Literal a
+        a -> P_Literal a
     "lambda" -> let (C_List (C_Cons (C_Symbol a) b)) = args in P_Procedure a (preprocess_body context b)
     "if" -> let (C_List (C_Cons a (C_List (C_Cons b c)))) = args in P_Conditional (preprocess context a) (preprocess context b) (preprocess_body context c)
     "set!" -> let (C_List (C_Cons (C_Symbol s) expr)) = args in P_Assignment s (preprocess context expr)
