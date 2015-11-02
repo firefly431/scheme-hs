@@ -3,6 +3,7 @@ module Types
 , S_List(..)
 , I_Number
 , BuiltinFunction(..)
+, S_Error(..)
 , display
 , undefinedObject
 , sappend
@@ -13,9 +14,15 @@ import Data.Complex
 import Data.Char(ord)
 import Numeric(showHex)
 
+import Control.Monad.Except
+
 type I_Number = Complex Double
 
-newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> S_Object }
+data S_Error = Default {message :: String}
+
+instance Show S_Error where show = message
+
+newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> ExceptT S_Error IO S_Object }
 
 instance Show BuiltinFunction where
     show = const "(builtin)"

@@ -6,18 +6,13 @@ import Data.IORef
 import qualified Data.Map.Strict as Map
 
 import System.IO
-import System.IO.Error
-import Control.Monad.Except
 
 import Control.Applicative
 
 import Types
 import Parser
 import Preprocess
-
-data S_Error = Default {message :: String}
-
-instance Show S_Error where show = message
+import Builtins
 
 newtype ContT r m a = ContT { runContT :: (a -> m r) -> m r }
 
@@ -43,7 +38,7 @@ callCC f = ContT $ \h -> runContT (f (\a -> ContT $ \_ -> h a)) h
 type Env = IORef (Map.Map String S_Object)
 
 callFunction :: S_Object -> S_Object -> SCont
-callFunction (C_Builtin f) a = lift . lift . return . runBuiltin f $ a
+callFunction (C_Builtin f) a = lift . runBuiltin f $ a
 
 eval :: Env -> S_Program -> SCont
 eval _ (P_Literal a) = return a
@@ -72,7 +67,7 @@ eval _ (P_Undefined) = return undefinedObject
 eval _ a = lift . lift $ (putStrLn ("Error: unknown program " ++ (show a)) >> return undefinedObject)
 
 baseEnv :: IO Env
-baseEnv = newIORef Map.empty
+baseEnv = newIORef $ Map.fromList builtins
 
 main' env = do
     hPutStr stderr "scheme> "
