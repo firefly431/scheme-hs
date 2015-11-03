@@ -81,7 +81,7 @@ preprocess context (C_List (C_Cons a b)) = process_list context a b
 
 process_args :: S_Context -> S_Object -> S_Program
 process_args context (C_List C_EmptyList) = P_BuildEmptyList
-process_args context (C_List (C_Cons a b)) = P_BuildList (preprocess context a) (preprocess context b)
+process_args context (C_List (C_Cons a b)) = P_BuildList (preprocess context a) (process_args context b)
 process_args context x = preprocess context x
 
 parse_transformer :: S_Object -> S_Macro

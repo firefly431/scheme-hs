@@ -8,6 +8,8 @@ import qualified Data.Map.Strict as Map
 import System.IO
 
 import Control.Applicative
+import Control.Monad.Except
+import Control.Monad.Trans.Class
 
 import Types
 import Parser
@@ -39,6 +41,7 @@ type Env = IORef (Map.Map String S_Object)
 
 callFunction :: S_Object -> S_Object -> SCont
 callFunction (C_Builtin f) a = lift . runBuiltin f $ a
+callFunction a b = lift $ throwError (Default ((display a) ++ " is not a function"))
 
 eval :: Env -> S_Program -> SCont
 eval _ (P_Literal a) = return a
@@ -67,7 +70,7 @@ eval _ (P_Undefined) = return undefinedObject
 eval _ a = lift . lift $ (putStrLn ("Error: unknown program " ++ (show a)) >> return undefinedObject)
 
 baseEnv :: IO Env
-baseEnv = newIORef $ Map.fromList builtins
+baseEnv = newIORef $ Map.map C_Builtin $ Map.fromList builtins
 
 main' env = do
     hPutStr stderr "scheme> "
@@ -77,7 +80,10 @@ main' env = do
         return ()
     else do
         let expr = preprocess_body base_context . parse $ line
-        runExceptT $ runContT (eval env expr) (lift . putStrLn . display)
+        res <- runExceptT $ runContT (eval env expr) (lift . putStrLn . display)
+        case res of
+            Left e -> putStrLn $ "error: " ++ show e
+            Right _ -> return ()
         main' env
 
 main = baseEnv >>= main'
