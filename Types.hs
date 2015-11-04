@@ -18,9 +18,23 @@ import Control.Monad.Except
 
 type I_Number = Complex Double
 
-data S_Error = Default {message :: String}
+data S_Error =
+    User String
+  | AssertionViolation String
+  | NotFunction String
+  | UndefinedVariable String
+  | ArgumentError
+  | Other String
 
-instance Show S_Error where show = message
+errorMessage (User s) = s
+errorMessage (Other s) = s
+errorMessage (AssertionViolation s) = "assertion violation: " ++ s
+errorMessage (NotFunction s) = "not a function: " ++ s
+errorMessage (UndefinedVariable s) = "undefined variable: " ++ s
+errorMessage (ArgumentError) = "error in function arguments"
+
+instance Show S_Error where
+    show = ("error: "++) . errorMessage
 
 newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> ExceptT S_Error IO S_Object }
 

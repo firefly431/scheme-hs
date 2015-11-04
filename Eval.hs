@@ -41,7 +41,7 @@ type Env = IORef (Map.Map String S_Object)
 
 callFunction :: S_Object -> S_Object -> SCont
 callFunction (C_Builtin f) a = lift . runBuiltin f $ a
-callFunction a b = lift $ throwError (Default ((display a) ++ " is not a function"))
+callFunction a b = lift $ throwError (NotFunction . display $ a)
 
 eval :: Env -> S_Program -> SCont
 eval _ (P_Literal a) = return a
@@ -49,7 +49,7 @@ eval env (P_Lookup n) = do
     env' <- lift $ liftIO $ readIORef env
     case Map.lookup n env' of
         Just a -> return a
-        Nothing -> lift $ throwError (Default "Undefined variable")
+        Nothing -> lift $ throwError (UndefinedVariable n)
 eval env (P_Call f a) = do
     f' <- eval env f
     a' <- eval env a
@@ -82,7 +82,7 @@ main' env = do
         let expr = preprocess_body base_context . parse $ line
         res <- runExceptT $ runContT (eval env expr) (lift . putStrLn . display)
         case res of
-            Left e -> putStrLn $ "error: " ++ show e
+            Left e -> print e
             Right _ -> return ()
         main' env
 
