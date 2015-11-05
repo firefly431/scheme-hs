@@ -37,7 +37,7 @@ instance MonadTrans (ContT r) where
 callCC :: ((a -> ContT r m a) -> ContT r m a) -> ContT r m a
 callCC f = ContT $ \h -> runContT (f (\a -> ContT $ \_ -> h a)) h
 
-type Env = IORef (Map.Map String S_Object)
+type Env = IORef (Map.Map String (IORef S_Object))
 
 callFunction :: S_Object -> S_Object -> SCont
 callFunction (C_Builtin f) a = lift . runBuiltin f $ a
@@ -48,7 +48,7 @@ eval _ (P_Literal a) = return a
 eval env (P_Lookup n) = do
     env' <- lift $ liftIO $ readIORef env
     case Map.lookup n env' of
-        Just a -> return a
+        Just a -> lift . lift $ readIORef a
         Nothing -> lift $ throwError (UndefinedVariable n)
 eval env (P_Call f a) = do
     f' <- eval env f
@@ -60,7 +60,17 @@ eval env (P_BuildList a b) = do
     a' <- eval env a
     b' <- eval env b
     return $ C_List $ C_Cons a' b'
-eval env (P_Assignment var val) = (eval env val) >>= lift . lift . (\val' -> modifyIORef' env (Map.insert var val')) >> return undefinedObject
+eval env (P_Assignment var val) = do
+    env' <- lift . lift $ readIORef env
+    varref <- case Map.lookup var env' of
+        Just a -> return a
+        Nothing -> lift $ throwError (UndefinedVariable var)
+    eval env val >>= (fmap (lift . lift) $ writeIORef varref)
+    return undefinedObject
+eval env (P_Definition var val) = do
+    io <- lift . lift $ newIORef undefinedObject
+    lift . lift $ modifyIORef' env (Map.insert var io)
+    eval env (P_Assignment var val)
 eval env (P_Conditional cond t f) = do
     cond' <- eval env cond
     case cond' of

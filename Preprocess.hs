@@ -16,6 +16,7 @@ data S_Program =
   | P_Procedure String S_Program
   | P_Conditional S_Program S_Program S_Program
   | P_Assignment String S_Program
+  | P_Definition String S_Program
   | P_Sequence S_Program S_Program
   | P_BuildEmptyList
   | P_BuildList S_Program S_Program
@@ -106,6 +107,7 @@ process_list context (C_Symbol s) args = case s of
     "lambda" -> let (C_List (C_Cons (C_Symbol a) b)) = args in P_Procedure a (preprocess_body context b)
     "if" -> let (C_List (C_Cons a (C_List (C_Cons b c)))) = args in P_Conditional (preprocess context a) (preprocess context b) (preprocess_body context c)
     "set!" -> let (C_List (C_Cons (C_Symbol s) expr)) = args in P_Assignment s (preprocess_body context expr)
+    "define" -> let (C_List (C_Cons (C_Symbol s) expr)) = args in P_Definition s (preprocess_body context expr)
     name -> case Map.lookup name context of
         Nothing -> P_Call (P_Lookup name) (process_args context args)
         Just macro -> preprocess context $ expand_macro macro (C_List $ C_Cons (C_Symbol name) args)
