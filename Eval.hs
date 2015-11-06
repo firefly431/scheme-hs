@@ -80,7 +80,7 @@ eval _ (P_Undefined) = return undefinedObject
 eval _ a = lift . lift $ (putStrLn ("Error: unknown program " ++ (show a)) >> return undefinedObject)
 
 baseEnv :: IO Env
-baseEnv = newIORef $ Map.map C_Builtin $ Map.fromList builtins
+baseEnv = (fmap Map.fromList $ mapM (mapM $ newIORef . C_Builtin) builtins) >>= newIORef
 
 main' env = do
     hPutStr stderr "scheme> "
