@@ -4,6 +4,12 @@ module Types
 , I_Number
 , BuiltinFunction(..)
 , S_Error(..)
+, Env
+, L_Closure(..)
+, L_Program(..)
+, ContT(..)
+, SCont
+, callCC
 , display
 , undefinedObject
 , sappend
@@ -16,6 +22,9 @@ import Numeric(showHex)
 
 import Control.Monad.Except
 
+import Data.IORef
+import qualified Data.Map.Strict as Map
+
 type I_Number = Complex Double
 
 data S_Error =
@@ -23,7 +32,8 @@ data S_Error =
   | AssertionViolation String
   | NotFunction String
   | UndefinedVariable String
-  | ArgumentError
+  | ArgumentError String
+  | Syntax String
   | Other String
 
 errorMessage (User s) = s
@@ -31,7 +41,8 @@ errorMessage (Other s) = s
 errorMessage (AssertionViolation s) = "assertion violation: " ++ s
 errorMessage (NotFunction s) = "not a function: " ++ s
 errorMessage (UndefinedVariable s) = "undefined variable: " ++ s
-errorMessage (ArgumentError) = "error in function arguments"
+errorMessage (ArgumentError s) = "argument error: " ++ s
+errorMessage (Syntax s) = "syntax error: " ++ s
 
 instance Show S_Error where
     show = ("error: "++) . errorMessage
@@ -41,6 +52,37 @@ newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> ExceptT S_
 instance Show BuiltinFunction where
     show = const "(builtin)"
 
+type Env = IORef (Map.Map String (IORef S_Object))
+
+newtype L_Closure = L_Closure { closure :: Env }
+
+instance Show L_Closure where show = const "(closure)"
+
+newtype L_Program = L_Program { runLambda :: (Env -> SCont) }
+
+instance Show L_Program where show = const "(function)"
+
+newtype ContT r m a = ContT { runContT :: (a -> m r) -> m r }
+
+type SCont = ContT () (ExceptT S_Error IO) S_Object
+
+instance Functor m => Functor (ContT r m) where
+    fmap f m = ContT $ \a -> runContT m (a . f)
+
+instance Applicative m => Applicative (ContT r m) where
+    pure x = ContT ($ x)
+    f <*> a = ContT $ \b -> runContT f $ \c -> runContT a (b . c)
+
+instance (Applicative m, Monad m) => Monad (ContT r m) where
+    return x = ContT ($ x)
+    a >>= b = ContT $ \c -> runContT a $ \d -> runContT (b d) c
+
+instance MonadTrans (ContT r) where
+    lift m = ContT (m >>=)
+
+callCC :: ((a -> ContT r m a) -> ContT r m a) -> ContT r m a
+callCC f = ContT $ \h -> runContT (f (\a -> ContT $ \_ -> h a)) h
+
 data S_Object = C_Number I_Number
               | C_List S_List
               | C_Bool Bool
@@ -48,6 +90,7 @@ data S_Object = C_Number I_Number
               | C_Symbol String
               | C_String String
               | C_Builtin BuiltinFunction
+              | C_Lambda L_Closure S_Object L_Program
               deriving (Show)
 
 data S_List = C_EmptyList
@@ -99,7 +142,8 @@ display (C_Char ' ') = "#\\space"
 display (C_Char x) = '#' : '\\' : x : ""
 display (C_Symbol x) = x
 display (C_String x) = "\"" ++ (stringEscape x) ++ "\""
-display (C_Builtin x) = "(builtin)"
+display (C_Builtin _) = "(builtin)"
+display (C_Lambda _ p _) = "(lambda " ++ (display p) ++ "...)"
 
 undefinedObject :: S_Object
 undefinedObject = C_Bool False

@@ -38,7 +38,7 @@ instance Convertable B_Number where
 folds :: (Convertable a) => (a -> a -> a) -> a -> S_Object -> ExceptT S_Error IO a
 folds f a (C_List C_EmptyList) = return a
 folds f a (C_List (C_Cons x xs)) = convert x >>= return . f a >>= (\a' -> seq a' $ folds f a' xs)
-folds f a _ = throwError ArgumentError
+folds f a _ = throwError (ArgumentError "invalid argument")
 
 processIrritants :: String -> S_Object -> String
 processIrritants m (C_List C_EmptyList) = m
@@ -55,7 +55,7 @@ processError _ = "user error"
 
 extractSingleton :: S_Object -> ExceptT S_Error IO S_Object
 extractSingleton (C_List (C_Cons x (C_List C_EmptyList))) = return x
-extractSingleton _ = throwError ArgumentError
+extractSingleton _ = throwError (ArgumentError "invalid argument or too many/few arguments")
 
 builtins :: [(String, BuiltinFunction)]
 builtins =
@@ -64,14 +64,14 @@ builtins =
         (C_List (C_Cons x xs)) -> case xs of
             (C_List C_EmptyList) -> fmap (unconvert . negate) $ (convert x :: ExceptT S_Error IO B_Number)
             _ -> convert x >>= \x' -> fmap unconvert . folds (-) (x' :: B_Number) $ xs
-        _ -> throwError ArgumentError
+        _ -> throwError (ArgumentError "invalid argument")
         )
     , ("*", BuiltinFunction $ fmap unconvert . (folds (*) (BoxN $ 1 :+ 0)))
     , ("/", BuiltinFunction $ \a -> case a of
         (C_List (C_Cons x xs)) -> case xs of
             (C_List C_EmptyList) -> fmap (unconvert . recip) $ (convert x :: ExceptT S_Error IO B_Number)
             _ -> convert x >>= \x' -> fmap unconvert . folds (/) (x' :: B_Number) $ xs
-        _ -> throwError ArgumentError
+        _ -> throwError (ArgumentError "invalid argument")
         )
     , ("write", BuiltinFunction $ (>>= (>> return undefinedObject) . lift . putStr . show) . extractSingleton)
     , ("display", BuiltinFunction $ (>>= (>> return undefinedObject) . lift . putStr . display) . extractSingleton)
