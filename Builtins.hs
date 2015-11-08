@@ -7,6 +7,7 @@ import Types
 import Control.Monad
 import Control.Monad.Except
 import Data.Complex
+import Data.List
 import Data.Function
 import System.Exit
 
@@ -30,15 +31,31 @@ instance Fractional B_Number where
     recip = BoxN . recip . unbox
     fromRational = BoxN . fromRational
 
+instance Eq B_Number where
+    (==) = (==) `on` realPart . unbox
+    (/=) = (/=) `on` unbox
+
+instance Ord B_Number where
+    compare = compare `on` (realPart . unbox)
+
 instance Convertable B_Number where
     convert (C_Number x) = return . BoxN $ x
     convert _ = throwError $ AssertionViolation "expected number"
     unconvert = C_Number . unbox
 
-folds :: (Convertable a) => (a -> a -> a) -> a -> S_Object -> ExceptT S_Error IO a
-folds f a (C_List C_EmptyList) = return a
-folds f a (C_List (C_Cons x xs)) = convert x >>= return . f a >>= (\a' -> seq a' $ folds f a' xs)
-folds f a _ = throwError (ArgumentError "invalid argument")
+asList :: (Convertable a) => S_Object -> ExceptT S_Error IO [a]
+asList (C_List C_EmptyList) = return []
+asList (C_List (C_Cons x xs)) = do
+    x' <- convert x
+    xs' <- asList xs
+    return $ x':xs'
+asList _ = throwError (ArgumentError "invalid argument")
+
+number :: b -> (a -> b) -> ([a] -> b) -> [a] -> b
+number zero one many list = case list of
+    [] -> zero
+    [a] -> one a
+    _ -> many list
 
 processIrritants :: String -> S_Object -> String
 processIrritants m (C_List C_EmptyList) = m
@@ -57,25 +74,28 @@ extractSingleton :: S_Object -> ExceptT S_Error IO S_Object
 extractSingleton (C_List (C_Cons x (C_List C_EmptyList))) = return x
 extractSingleton _ = throwError (ArgumentError "invalid argument or too many/few arguments")
 
+foldcf :: (Convertable a) => (a -> a -> a) -> a -> S_Object -> ExceptT S_Error IO S_Object
+foldcf f d = fmap unconvert . (\l -> fmap (foldl' f d) (asList l))
+
+foldcnf :: (Convertable a) => a -> (a -> a) -> (a -> a -> a) -> S_Object -> ExceptT S_Error IO S_Object
+foldcnf z o m = fmap unconvert . (\l -> fmap (number z o (foldl1' m)) (asList l))
+
+comparef :: (Convertable a, Ord a) => (a -> a -> Bool) -> Bool -> a -> S_Object -> ExceptT S_Error IO S_Object
+comparef f z o = fmap C_Bool . (\l -> fmap (number z (\a -> f a o) (\l -> all (uncurry f) $ zip l (tail l))) (asList l))
+
 builtins :: [(String, BuiltinFunction)]
-builtins =
-    [ ("+", BuiltinFunction $ fmap unconvert . (folds (+) (BoxN $ 0 :+ 0)))
-    , ("-", BuiltinFunction $ \a -> case a of
-        (C_List (C_Cons x xs)) -> case xs of
-            (C_List C_EmptyList) -> fmap (unconvert . negate) $ (convert x :: ExceptT S_Error IO B_Number)
-            _ -> convert x >>= \x' -> fmap unconvert . folds (-) (x' :: B_Number) $ xs
-        _ -> throwError (ArgumentError "invalid argument")
-        )
-    , ("*", BuiltinFunction $ fmap unconvert . (folds (*) (BoxN $ 1 :+ 0)))
-    , ("/", BuiltinFunction $ \a -> case a of
-        (C_List (C_Cons x xs)) -> case xs of
-            (C_List C_EmptyList) -> fmap (unconvert . recip) $ (convert x :: ExceptT S_Error IO B_Number)
-            _ -> convert x >>= \x' -> fmap unconvert . folds (/) (x' :: B_Number) $ xs
-        _ -> throwError (ArgumentError "invalid argument")
-        )
-    , ("write", BuiltinFunction $ (>>= (>> return undefinedObject) . lift . putStr . show) . extractSingleton)
-    , ("display", BuiltinFunction $ (>>= (>> return undefinedObject) . lift . putStr . display) . extractSingleton)
-    , ("newline", BuiltinFunction $ (>> return undefinedObject) . lift . putChar . const '\n')
-    , ("exit", BuiltinFunction $ lift . exitWith . (\x -> case x of C_Bool False -> ExitFailure 1; _ -> ExitSuccess))
-    , ("error", BuiltinFunction $ throwError . User . processError)
+builtins = map (fmap BuiltinFunction)
+    [ ("+", foldcf (+) (BoxN $ 0 :+ 0))
+    , ("-", foldcnf (BoxN $ 0 :+ 0) negate (-))
+    , ("*", foldcf (*) (BoxN $ 1 :+ 0))
+    , ("/", foldcnf (BoxN $ 1 :+ 0) recip (/))
+    , ("<", comparef (<) False (BoxN $ 0 :+ 0))
+    , (">", comparef (>) False (BoxN $ 0 :+ 0))
+    , ("<=", comparef (<=) True (BoxN $ 0 :+ 0))
+    , (">=", comparef (>=) True (BoxN $ 0 :+ 0))
+    , ("write", (>>= (>> return undefinedObject) . lift . putStr . show) . extractSingleton)
+    , ("display", (>>= (>> return undefinedObject) . lift . putStr . display) . extractSingleton)
+    , ("newline", (>> return undefinedObject) . lift . putChar . const '\n')
+    , ("exit", lift . exitWith . (\x -> case x of C_Bool False -> ExitFailure 1; _ -> ExitSuccess))
+    , ("error", throwError . User . processError)
     ]
