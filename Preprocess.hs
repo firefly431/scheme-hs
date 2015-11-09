@@ -24,8 +24,10 @@ data S_Program =
     deriving (Show)
 
 newtype S_Macro = C_Macro {rules :: [S_Rule]}
+    deriving (Show)
 
 data S_Rule = C_Rule S_Pattern S_Pattern
+    deriving (Show)
 
 data S_Pattern =
     P_Variable String
@@ -33,6 +35,7 @@ data S_Pattern =
   | P_EmptyList
   | P_Cons S_Pattern S_Pattern
   | P_Ellipsis S_Pattern
+    deriving (Show)
 
 type S_Context = Map.Map String S_Macro
 
@@ -66,7 +69,7 @@ substitute_template (P_EmptyList) _ = C_List C_EmptyList
 substitute_template (P_Cons a b) vars = case a of
     P_Ellipsis a' -> sappend (substitute_template a' vars) (substitute_template b vars)
     _ -> C_List $ C_Cons (substitute_template a vars) (substitute_template b vars)
-substitute_template (P_Ellipsis _) _ = error "Invalid template"
+substitute_template (P_Ellipsis _) _ = error "invalid template"
 
 base_context :: S_Context
 base_context = Map.empty -- TODO: fill
@@ -86,7 +89,33 @@ process_args context (C_List (C_Cons a b)) = P_BuildList (preprocess context a) 
 process_args context x = preprocess context x
 
 parse_transformer :: S_Object -> S_Macro
-parse_transformer a = C_Macro [C_Rule P_EmptyList P_EmptyList] -- TODO: implement
+parse_transformer a = case a of
+    (C_List (C_Cons (C_Symbol "syntax-rules") (C_List (C_Cons lits@(C_List _) rules@(C_List _))))) -> C_Macro $ parse_rules (parse_lits lits) rules
+    _ -> error "invalid transformer"
+
+parse_lits :: S_Object -> [String]
+parse_lits (C_List (C_Cons (C_Symbol x) xs)) = x : (parse_lits xs)
+parse_lits (C_List C_EmptyList) = []
+parse_lits _ = error "invalid literals"
+
+parse_rules :: [String] -> S_Object -> [S_Rule]
+parse_rules lits (C_List (C_Cons x xs)) = (parse_rule lits x) : (parse_rules lits xs)
+parse_rules lits (C_List (C_EmptyList)) = []
+
+parse_rule :: [String] -> S_Object -> S_Rule
+parse_rule lits (C_List (C_Cons pat (C_List (C_Cons temp (C_List C_EmptyList))))) = C_Rule (parse_pattern lits pat) (parse_pattern [] temp)
+parse_rule _ _ = error "invalid rule"
+
+parse_pattern :: [String] -> S_Object -> S_Pattern
+parse_pattern lits x@(C_Number _) = P_Const x
+parse_pattern lits x@(C_Bool _) = P_Const x
+parse_pattern lits x@(C_Char _) = P_Const x
+parse_pattern lits x@(C_String _) = P_Const x
+parse_pattern lits (C_Symbol x) = if (x `elem` lits) then (P_Const (C_Symbol x)) else (P_Variable x)
+parse_pattern lits (C_List C_EmptyList) = P_EmptyList
+parse_pattern lits (C_List (C_Cons a b)) = case b of
+    (C_List (C_Cons (C_Symbol "...") c)) -> P_Cons (P_Ellipsis (parse_pattern lits a)) (parse_pattern lits c)
+    _ -> P_Cons (parse_pattern lits a) (parse_pattern lits b)
 
 preprocess_body :: S_Context -> S_Object -> S_Program
 preprocess_body context (C_List (C_Cons a b)) = case a of
