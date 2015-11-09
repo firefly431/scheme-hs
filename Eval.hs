@@ -1,5 +1,7 @@
 module Eval
 ( eval
+, baseEnv
+, interpret
 ) where
 
 import Data.IORef
@@ -97,18 +99,5 @@ eval _ (P_Undefined) = return undefinedObject
 baseEnv :: IO Env
 baseEnv = (fmap Map.fromList $ mapM (mapM $ newIORef . C_Builtin) builtins) >>= newIORef
 
-main' env = do
-    hPutStr stderr "scheme> "
-    hFlush stderr
-    line <- getLine
-    if line == "quit" then
-        return ()
-    else do
-        let expr = preprocess_body base_context . parse $ line
-        res <- runExceptT $ runContT (eval env expr) (lift . putStrLn . display)
-        case res of
-            Left e -> print e
-            Right _ -> return ()
-        main' env
-
-main = baseEnv >>= main'
+interpret :: Env -> String -> SCont
+interpret e = eval e . preprocess_body base_context . parse
