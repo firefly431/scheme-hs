@@ -2,6 +2,7 @@ import System.IO
 import Control.Monad.Except
 
 import Types
+import Builtins
 import Eval
 
 main' env = do

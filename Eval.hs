@@ -1,6 +1,6 @@
 module Eval
 ( eval
-, baseEnv
+, callFunction
 , interpret
 ) where
 
@@ -16,10 +16,9 @@ import Control.Monad.Trans.Class
 import Types
 import Parser
 import Preprocess
-import Builtins
 
 callFunction :: S_Object -> S_Object -> SCont
-callFunction (C_Builtin f) a = lift . runBuiltin f $ a
+callFunction (C_Builtin f) a = runBuiltin f $ a
 callFunction (C_Lambda (L_Closure env) params (L_Program prog)) args = (lift $ injectParams env params args) >>= prog
 callFunction a b = lift $ throwError (NotFunction . display $ a)
 
@@ -95,9 +94,6 @@ eval env (P_Procedure params prog) = do
     closure <- lift $ createClosure env params
     return (C_Lambda (L_Closure closure) params (L_Program $ flip eval prog))
 eval _ (P_Undefined) = return undefinedObject
-
-baseEnv :: IO Env
-baseEnv = (fmap Map.fromList $ mapM (mapM $ newIORef . C_Builtin) builtins) >>= newIORef
 
 interpret :: Env -> String -> SCont
 interpret e = eval e . preprocess_body base_context . parse

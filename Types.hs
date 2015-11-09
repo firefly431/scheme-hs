@@ -47,8 +47,6 @@ errorMessage (Syntax s) = "syntax error: " ++ s
 instance Show S_Error where
     show = ("error: "++) . errorMessage
 
-newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> ExceptT S_Error IO S_Object }
-
 instance Show BuiltinFunction where
     show = const "(builtin)"
 
@@ -65,6 +63,8 @@ instance Show L_Program where show = const "(function)"
 newtype ContT r m a = ContT { runContT :: (a -> m r) -> m r }
 
 type SCont = ContT () (ExceptT S_Error IO) S_Object
+
+newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> SCont }
 
 instance Functor m => Functor (ContT r m) where
     fmap f m = ContT $ \a -> runContT m (a . f)

@@ -1,15 +1,19 @@
 module Builtins
 ( builtins
+, baseEnv
 ) where
-
-import Types
 
 import Control.Monad
 import Control.Monad.Except
 import Data.Complex
+import qualified Data.Map.Strict as Map
 import Data.List
 import Data.Function
+import Data.IORef
 import System.Exit
+
+import Types
+import Eval
 
 class Convertable a where
     convert :: S_Object -> ExceptT S_Error IO a
@@ -84,7 +88,7 @@ comparef :: (Convertable a, Ord a) => (a -> a -> Bool) -> Bool -> a -> S_Object 
 comparef f z o = fmap C_Bool . (\l -> fmap (number z (\a -> f a o) (\l -> all (uncurry f) $ zip l (tail l))) (asList l))
 
 builtins :: [(String, BuiltinFunction)]
-builtins = map (fmap BuiltinFunction)
+builtins = map (fmap BuiltinFunction) (map (fmap (lift .))
     [ ("+", foldcf (+) (BoxN $ 0 :+ 0))
     , ("-", foldcnf (BoxN $ 0 :+ 0) negate (-))
     , ("*", foldcf (*) (BoxN $ 1 :+ 0))
@@ -98,4 +102,9 @@ builtins = map (fmap BuiltinFunction)
     , ("newline", (>> return undefinedObject) . lift . putChar . const '\n')
     , ("exit", lift . exitWith . (\x -> case x of C_Bool False -> ExitFailure 1; _ -> ExitSuccess))
     , ("error", throwError . User . processError)
-    ]
+    ] ++
+    [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
+    ])
+
+baseEnv :: IO Env
+baseEnv = (fmap Map.fromList $ mapM (mapM $ newIORef . C_Builtin) builtins) >>= newIORef
