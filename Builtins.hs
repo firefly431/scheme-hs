@@ -98,4 +98,6 @@ builtins = map (fmap BuiltinFunction)
     , ("newline", (>> return undefinedObject) . lift . putChar . const '\n')
     , ("exit", lift . exitWith . (\x -> case x of C_Bool False -> ExitFailure 1; _ -> ExitSuccess))
     , ("error", throwError . User . processError)
+    , ("max", fmap (unconvert . maximum) . (asList :: S_Object -> ExceptT S_Error IO [B_Number]))
+    , ("min", fmap (unconvert . minimum) . (asList :: S_Object -> ExceptT S_Error IO [B_Number]))
     ]
