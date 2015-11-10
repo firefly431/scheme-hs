@@ -52,7 +52,7 @@ match_pattern obj (P_Const lit)
 match_pattern (C_List C_EmptyList) P_EmptyList = Just Map.empty
 match_pattern _ P_EmptyList = Nothing
 match_pattern (C_List (C_Cons a b)) rule@(P_Cons c d) = case c of
-    P_Ellipsis c' -> case match_pattern a c' of
+    P_Ellipsis c' -> trace ("matching " ++ show c' ++ " with " ++ show a) $ case match_pattern a c' of
         Just vars -> fmap (Map.unionWith (curry $ C_List . uncurry C_Cons) vars) $ match_pattern b rule
         Nothing -> match_pattern b d
     _ -> do
