@@ -5,6 +5,7 @@ import Control.Monad.Except
 
 import Types
 import Eval
+import Builtins
 
 printUsageAndDie = getProgName >>= \x -> hPutStrLn stderr "USAGE:" >> hPutStr stderr x >> hPutStrLn stderr " [FILE]" >> exitFailure
 
