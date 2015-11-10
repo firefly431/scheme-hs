@@ -56,7 +56,7 @@ match_pattern (C_List (C_Cons a b)) rule@(P_Cons c d) = case c of
     _ -> do
         a' <- match_pattern a c
         b' <- match_pattern b d
-        return $ Map.union a' b'
+        return $ Map.union b' a' -- prefer right
 match_pattern _ (P_Cons _ _) = Nothing
 match_pattern _ (P_Ellipsis _) = Nothing
 
