@@ -2,7 +2,9 @@ module Preprocess
 ( preprocess
 , preprocess_body
 , base_context
+, parse_transformer
 , S_Program(..)
+, S_Macro(..)
 ) where
 
 import Types
