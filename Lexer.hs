@@ -171,7 +171,7 @@ tailIgnoringEmpty [] = []
 tailIgnoringEmpty x = tail x
 
 skipComment :: String -> (String, Bool)
-skipComment ('-':'-':s') = (tailIgnoringEmpty . snd . break (=='\n') $ s', True)
+skipComment (';':s') = (tailIgnoringEmpty . snd . break (=='\n') $ s', True)
 skipComment ('#':'|':s') = (skipBlock 1 s', True)
     where
         skipBlock 0 s = s
