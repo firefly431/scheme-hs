@@ -65,7 +65,7 @@ injectParams env params args = do
     where
         zipArgs :: Env -> S_Object -> S_Object -> ExceptT S_Error IO ()
         zipArgs env (C_List C_EmptyList) (C_List C_EmptyList) = return ()
-        zipArgs env (C_List (C_Cons (C_Symbol px) pxs)) (C_List (C_Cons ax axs)) = assignVariable env px ax
+        zipArgs env (C_List (C_Cons (C_Symbol px) pxs)) (C_List (C_Cons ax axs)) = assignVariable env px ax >> zipArgs env pxs axs
         zipArgs env (C_List (C_Cons _ _)) (C_List C_EmptyList) = throwError (ArgumentError "not enough arguments")
         zipArgs env (C_List C_EmptyList) (C_List (C_Cons _ _)) = throwError (ArgumentError "too many arguments")
         zipArgs env _ _ = throwError (ArgumentError "invalid argument")
