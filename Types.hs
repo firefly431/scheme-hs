@@ -47,11 +47,6 @@ errorMessage (Syntax s) = "syntax error: " ++ s
 instance Show S_Error where
     show = ("error: "++) . errorMessage
 
-newtype BuiltinFunction = BuiltinFunction { runBuiltin :: S_Object -> ExceptT S_Error IO S_Object }
-
-instance Show BuiltinFunction where
-    show = const "(builtin)"
-
 type Env = IORef (Map.Map String (IORef S_Object))
 
 newtype L_Closure = L_Closure { closure :: Env }
@@ -60,11 +55,22 @@ instance Show L_Closure where show = const "(closure)"
 
 newtype L_Program = L_Program { runLambda :: (Env -> SCont) }
 
+instance Eq L_Closure where a == b = False
+instance Eq L_Program where a == b = False
+
 instance Show L_Program where show = const "(function)"
 
 newtype ContT r m a = ContT { runContT :: (a -> m r) -> m r }
 
 type SCont = ContT () (ExceptT S_Error IO) S_Object
+
+data BuiltinFunction = BuiltinFunction { name :: String, runBuiltin :: S_Object -> SCont }
+
+instance Eq BuiltinFunction where
+    a == b = (name a) == (name b)
+
+instance Show BuiltinFunction where
+    show = const "(builtin)"
 
 instance Functor m => Functor (ContT r m) where
     fmap f m = ContT $ \a -> runContT m (a . f)
@@ -91,11 +97,11 @@ data S_Object = C_Number I_Number
               | C_String String
               | C_Builtin BuiltinFunction
               | C_Lambda L_Closure S_Object L_Program
-              deriving (Show)
+              deriving (Show, Eq)
 
 data S_List = C_EmptyList
             | C_Cons S_Object S_Object
-            deriving (Show)
+            deriving (Show, Eq)
 
 stringEscape :: String -> String
 stringEscape ('\a':s') = "\\a" ++ stringEscape s'
@@ -142,7 +148,7 @@ display (C_Char ' ') = "#\\space"
 display (C_Char x) = '#' : '\\' : x : ""
 display (C_Symbol x) = x
 display (C_String x) = "\"" ++ (stringEscape x) ++ "\""
-display (C_Builtin _) = "(builtin)"
+display (C_Builtin (BuiltinFunction n _)) = "(builtin " ++ n ++ ")"
 display (C_Lambda _ p _) = "(lambda " ++ (display p) ++ "...)"
 
 undefinedObject :: S_Object
@@ -153,4 +159,4 @@ sappend (C_List C_EmptyList) b = b
 sappend (C_List (C_Cons a a')) b = C_List $ C_Cons a $ sappend a' b
 
 equal :: S_Object -> S_Object -> Bool
-equal a b = True -- TODO: fix
+equal = (==)
