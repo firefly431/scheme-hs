@@ -44,6 +44,13 @@ type S_Context = Map.Map String S_Macro
 match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String S_Object)
 match_rule obj (C_Rule pattern repl) = fmap ((,) repl) $ match_pattern obj pattern
 
+fill_symbols :: S_Pattern -> Map.Map String S_Object
+fill_symbols (P_Variable name) = Map.singleton name (C_List C_EmptyList)
+fill_symbols (P_Const lit) = Map.empty
+fill_symbols (P_EmptyList) = Map.empty
+fill_symbols (P_Cons a b) = Map.union (fill_symbols b) (fill_symbols a)
+fill_symbols (P_Ellipsis a) = fill_symbols a
+
 match_pattern :: S_Object -> S_Pattern -> Maybe (Map.Map String S_Object)
 match_pattern obj (P_Variable name) = Just $ Map.singleton name obj
 match_pattern obj (P_Const lit)
@@ -51,8 +58,9 @@ match_pattern obj (P_Const lit)
     | otherwise = Nothing
 match_pattern (C_List C_EmptyList) P_EmptyList = Just Map.empty
 match_pattern _ P_EmptyList = Nothing
+match_pattern (C_List C_EmptyList) (P_Cons (P_Ellipsis a) P_EmptyList) = Just $ fill_symbols a
 match_pattern (C_List (C_Cons a b)) rule@(P_Cons c d) = case c of
-    P_Ellipsis c' -> trace ("matching " ++ show c' ++ " with " ++ show a) $ case match_pattern a c' of
+    P_Ellipsis c' -> case match_pattern a c' of
         Just vars -> fmap (Map.unionWith (curry $ C_List . uncurry C_Cons) vars) $ match_pattern b rule
         Nothing -> match_pattern b d
     _ -> do
@@ -122,7 +130,6 @@ preprocess_body context (C_List (C_Cons a b)) = case a of
     a' -> case b of
         C_List C_EmptyList -> preprocess context a'
         b' -> P_Sequence (preprocess context a') $ preprocess_body context b'
-preprocess_body context (C_Symbol _) = traceShow context P_Undefined
 preprocess_body _ _ = P_Undefined
 
 expand_macro :: S_Macro -> S_Object -> S_Object
