@@ -1,5 +1,3 @@
-#|
-
 (define assert (lambda (x) (if x () (begin (display "FAIL") (newline))) x))
 (define assert_not (lambda (x) (if x (begin (display "FAIL") (newline))) x))
 
@@ -16,9 +14,4 @@
 ;;; testing "let" macro
 (assert (let ((x 1) (y 5)) (equal? x 1)))
 (assert (let ((x 2) (y 2)) (equal? y 2)))
-(assert (let ((x 1) (y 5) (z 5)) (and (equal? x 1) (equal? y 2) (equal? z 5))))
-
-|#
-
-(define foo (lambda (x y z) (if (and x y z) #f (display x) (display " ") (display y) (display " ") (display z) (newline) (display "FAIL\n"))))
-(foo #t #t #t)
+(assert (let ((x 1) (y 5) (z 5)) (and (equal? x 1) (equal? y 5) (equal? z 5))))
