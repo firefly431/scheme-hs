@@ -154,14 +154,16 @@ process_list context (C_Symbol s) args = case s of
 process_list context func args = P_Call (preprocess context func) (process_args context args)
 
 base_context :: S_Context
-base_context = Map.fromList [("and",C_Macro {rules = [C_Rule (P_Cons (P_Variable
+base_context = Map.fromList $
+    [ ("and",C_Macro {rules = [C_Rule (P_Cons (P_Variable
 "and") P_EmptyList) (P_Const (C_Bool True)),C_Rule (P_Cons (P_Variable "and")
 (P_Cons (P_Variable "test") P_EmptyList)) (P_Variable "test"),C_Rule (P_Cons
 (P_Variable "and") (P_Cons (P_Variable "test1") (P_Cons (P_Ellipsis
 (P_Variable "test2")) P_EmptyList))) (P_Cons (P_Variable "if") (P_Cons
 (P_Variable "test1") (P_Cons (P_Cons (P_Variable "and") (P_Cons (P_Ellipsis
 (P_Variable "test2")) P_EmptyList)) (P_Cons (P_Const (C_Bool False))
-P_EmptyList))))]}),("case",C_Macro {rules = [C_Rule (P_Cons (P_Variable
+P_EmptyList))))]})
+    , ("case",C_Macro {rules = [C_Rule (P_Cons (P_Variable
 "case") (P_Cons (P_Cons (P_Ellipsis (P_Variable "key")) P_EmptyList) (P_Cons
 (P_Ellipsis (P_Variable "clauses")) P_EmptyList))) (P_Cons (P_Variable "let")
 (P_Cons (P_Cons (P_Cons (P_Variable "atom-key") (P_Cons (P_Cons (P_Ellipsis
@@ -191,7 +193,8 @@ P_EmptyList) P_EmptyList)) P_EmptyList))) (P_Cons (P_Cons (P_Variable "begin")
 (P_Cons (P_Variable "result1") (P_Cons (P_Ellipsis (P_Variable "result2"))
 P_EmptyList))) (P_Cons (P_Cons (P_Variable "case") (P_Cons (P_Variable "key")
 (P_Cons (P_Variable "clause") (P_Cons (P_Ellipsis (P_Variable "clauses"))
-P_EmptyList)))) P_EmptyList))))]}),("cond",C_Macro {rules = [C_Rule (P_Cons
+P_EmptyList)))) P_EmptyList))))]})
+    , ("cond",C_Macro {rules = [C_Rule (P_Cons
 (P_Variable "cond") (P_Cons (P_Cons (P_Const (C_Symbol "else")) (P_Cons
 (P_Variable "result1") (P_Cons (P_Ellipsis (P_Variable "result2"))
 P_EmptyList))) P_EmptyList)) (P_Cons (P_Variable "begin") (P_Cons (P_Variable
@@ -232,7 +235,8 @@ P_EmptyList))),C_Rule (P_Cons (P_Variable "cond") (P_Cons (P_Cons (P_Variable
 (P_Variable "test") (P_Cons (P_Cons (P_Variable "begin") (P_Cons (P_Variable
 "result1") (P_Cons (P_Ellipsis (P_Variable "result2")) P_EmptyList))) (P_Cons
 (P_Cons (P_Variable "cond") (P_Cons (P_Variable "clause1") (P_Cons (P_Ellipsis
-(P_Variable "clause2")) P_EmptyList))) P_EmptyList))))]}),("let",C_Macro {rules = [C_Rule (P_Cons (P_Variable "let") (P_Cons (P_Cons (P_Ellipsis
+(P_Variable "clause2")) P_EmptyList))) P_EmptyList))))]})
+    , ("let",C_Macro {rules = [C_Rule (P_Cons (P_Variable "let") (P_Cons (P_Cons (P_Ellipsis
 (P_Cons (P_Variable "name") (P_Cons (P_Variable "val") P_EmptyList)))
 P_EmptyList) (P_Cons (P_Variable "body1") (P_Cons (P_Ellipsis (P_Variable
 "body2")) P_EmptyList)))) (P_Cons (P_Cons (P_Variable "lambda") (P_Cons
@@ -247,7 +251,8 @@ P_EmptyList))))) (P_Cons (P_Cons (P_Variable "letrec") (P_Cons (P_Cons (P_Cons
 (P_Ellipsis (P_Variable "name")) P_EmptyList) (P_Cons (P_Variable "body1")
 (P_Cons (P_Ellipsis (P_Variable "body2")) P_EmptyList)))) P_EmptyList))
 P_EmptyList) (P_Cons (P_Variable "tag") P_EmptyList))) (P_Cons (P_Ellipsis
-(P_Variable "val")) P_EmptyList))]}),("let*",C_Macro {rules = [C_Rule (P_Cons
+(P_Variable "val")) P_EmptyList))]})
+    , ("let*",C_Macro {rules = [C_Rule (P_Cons
 (P_Variable "let*") (P_Cons P_EmptyList (P_Cons (P_Variable "body1") (P_Cons
 (P_Ellipsis (P_Variable "body2")) P_EmptyList)))) (P_Cons (P_Variable "let")
 (P_Cons P_EmptyList (P_Cons (P_Variable "body1") (P_Cons (P_Ellipsis
@@ -260,7 +265,8 @@ P_EmptyList)) (P_Cons (P_Ellipsis (P_Cons (P_Variable "name2") (P_Cons
 "val1") P_EmptyList)) P_EmptyList) (P_Cons (P_Cons (P_Variable "let*") (P_Cons
 (P_Cons (P_Ellipsis (P_Cons (P_Variable "name2") (P_Cons (P_Variable "val2")
 P_EmptyList))) P_EmptyList) (P_Cons (P_Variable "body1") (P_Cons (P_Ellipsis
-(P_Variable "body2")) P_EmptyList)))) P_EmptyList)))]}),("or",C_Macro {rules =
+(P_Variable "body2")) P_EmptyList)))) P_EmptyList)))]})
+    , ("or",C_Macro {rules =
 [C_Rule (P_Cons (P_Variable "or") P_EmptyList) (P_Const (C_Bool False)),C_Rule
 (P_Cons (P_Variable "or") (P_Cons (P_Variable "test") P_EmptyList))
 (P_Variable "test"),C_Rule (P_Cons (P_Variable "or") (P_Cons (P_Variable
@@ -269,4 +275,5 @@ P_EmptyList))) P_EmptyList) (P_Cons (P_Variable "body1") (P_Cons (P_Ellipsis
 (P_Variable "test1") P_EmptyList)) P_EmptyList) (P_Cons (P_Cons (P_Variable
 "if") (P_Cons (P_Variable "x") (P_Cons (P_Variable "x") (P_Cons (P_Cons
 (P_Variable "or") (P_Cons (P_Ellipsis (P_Variable "test2")) P_EmptyList))
-P_EmptyList)))) P_EmptyList)))]})]
+P_EmptyList)))) P_EmptyList)))]})
+    ]
