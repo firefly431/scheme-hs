@@ -91,6 +91,10 @@ foldcnf z o m = fmap unconvert . (\l -> fmap (number z o (foldl1' m)) (asList l)
 comparef :: (Convertable a) => (a -> a -> Bool) -> Bool -> a -> S_Object -> ExceptT S_Error IO S_Object
 comparef f z o = fmap C_Bool . (\l -> fmap (number z (\a -> f a o) (\l -> all (uncurry f) $ zip l (tail l))) (asList l))
 
+prettyPrint :: S_Object -> String
+prettyPrint (C_String a) = a
+prettyPrint x = display x
+
 builtins :: [(String, S_Object -> SCont)]
 builtins = (map (fmap (lift .))
     [ ("+", foldcf (+) (BoxN $ 0 :+ 0))
@@ -102,7 +106,8 @@ builtins = (map (fmap (lift .))
     , ("<=", comparef (<=) True (BoxN $ 0 :+ 0))
     , (">=", comparef (>=) True (BoxN $ 0 :+ 0))
     , ("write", (>>= (>> return undefinedObject) . lift . putStr . show) . extractSingleton)
-    , ("display", (>>= (>> return undefinedObject) . lift . putStr . display) . extractSingleton)
+    , ("display-scheme", (>>= (>> return undefinedObject) . lift . putStr . display) . extractSingleton)
+    , ("display", (>>= (>> return undefinedObject) . lift . putStr . prettyPrint) . extractSingleton)
     , ("newline", (>> return undefinedObject) . lift . putChar . const '\n')
     , ("exit", lift . exitWith . (\x -> case x of C_Bool False -> ExitFailure 1; _ -> ExitSuccess))
     , ("error", throwError . User . processError)
