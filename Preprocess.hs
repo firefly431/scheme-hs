@@ -132,8 +132,11 @@ preprocess_body context (C_List (C_Cons a b)) = case a of
         b' -> P_Sequence (preprocess context a') $ preprocess_body context b'
 preprocess_body _ _ = P_Undefined
 
+traceThis :: (Show a) => String -> (a -> String) -> a -> a
+traceThis msg show x = trace (msg ++ show x) x
+
 expand_macro :: S_Macro -> S_Object -> S_Object
-expand_macro macro obj = uncurry substitute_template $ head $ mapMaybe (match_rule obj) (rules macro)
+expand_macro macro obj = traceThis ("expanded " ++ (display obj) ++ " to ") display $ uncurry substitute_template $ head $ mapMaybe (match_rule obj) (rules macro)
 
 process_list :: S_Context -> S_Object -> S_Object -> S_Program
 process_list context (C_Symbol s) args = case s of
