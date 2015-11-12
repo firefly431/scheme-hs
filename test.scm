@@ -15,3 +15,10 @@
 (assert (let ((x 1) (y 5)) (equal? x 1)))
 (assert (let ((x 2) (y 2)) (equal? y 2)))
 (assert (let ((x 1) (y 5) (z 5)) (and (equal? x 1) (equal? y 5) (equal? z 5))))
+
+;; test macro ellipses
+(define-syntax foo (syntax-rules ()
+    ((foo a (b) ...) (begin (display a) (foo (b) ...)))
+    ((foo) (newline))))
+
+(foo 1 (2) (3))

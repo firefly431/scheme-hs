@@ -43,18 +43,23 @@ data S_Pattern =
 
 type S_Context = Map.Map String S_Macro
 
-match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String S_Object)
+data P_Var =
+    P_Object S_Object
+  | P_ECons P_Var P_Var
+  | P_Empty
+
+match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String P_Var)
 match_rule obj (C_Rule pattern repl) = fmap ((,) repl) $ match_pattern obj pattern
 
-fill_symbols :: S_Pattern -> Map.Map String S_Object
-fill_symbols (P_Variable name) = Map.singleton name (C_List C_EmptyList)
+fill_symbols :: S_Pattern -> Map.Map String P_Var
+fill_symbols (P_Variable name) = Map.singleton name $ P_Object (C_List C_EmptyList)
 fill_symbols (P_Const lit) = Map.empty
 fill_symbols (P_EmptyList) = Map.empty
 fill_symbols (P_Cons a b) = Map.union (fill_symbols b) (fill_symbols a)
 fill_symbols (P_Ellipsis a) = fill_symbols a
 
-match_pattern :: S_Object -> S_Pattern -> Maybe (Map.Map String S_Object)
-match_pattern obj (P_Variable name) = Just $ Map.singleton name obj
+match_pattern :: S_Object -> S_Pattern -> Maybe (Map.Map String P_Var)
+match_pattern obj (P_Variable name) = Just $ Map.singleton name $ P_Object obj
 match_pattern obj (P_Const lit)
     | equal lit obj = Just Map.empty
     | otherwise = Nothing
@@ -63,7 +68,7 @@ match_pattern _ P_EmptyList = Nothing
 match_pattern (C_List C_EmptyList) (P_Cons (P_Ellipsis a) P_EmptyList) = Just $ fill_symbols a
 match_pattern (C_List (C_Cons a b)) rule@(P_Cons c d) = case c of
     P_Ellipsis c' -> case match_pattern a c' of
-        Just vars -> fmap (Map.unionWith (curry $ C_List . uncurry C_Cons) vars) $ match_pattern b rule
+        Just vars -> fmap (Map.unionWith (P_ECons) vars) $ match_pattern b rule
         Nothing -> match_pattern b d
     _ -> do
         a' <- match_pattern a c
@@ -72,15 +77,27 @@ match_pattern (C_List (C_Cons a b)) rule@(P_Cons c d) = case c of
 match_pattern _ (P_Cons _ _) = Nothing
 match_pattern _ (P_Ellipsis _) = Nothing
 
-substitute_template :: S_Pattern -> Map.Map String S_Object -> S_Object
-substitute_template (P_Variable name) vars = case Map.lookup name vars of
+getFirst :: P_Var -> Maybe S_Object
+getFirst (P_Object a) = a
+getFirst (P_ECons a b) = case getFirst a of
     Just val -> val
-    Nothing -> C_Symbol name
-substitute_template (P_Const val) _ = val
-substitute_template (P_EmptyList) _ = C_List C_EmptyList
+    Nothing -> getFirst b
+getFirst (P_Empty) = Nothing
+
+substitute_template :: S_Pattern -> Map.Map String P_Var -> Maybe S_Object
+substitute_template (P_Variable name) vars = case Map.lookup name vars of
+    Just val -> getFirst val
+    Nothing -> Just $ C_Symbol name
+substitute_template (P_Const val) _ = Just val
+substitute_template (P_EmptyList) _ = Just $ C_List C_EmptyList
 substitute_template (P_Cons a b) vars = case a of
-    P_Ellipsis a' -> sappend (substitute_template a' vars) (substitute_template b vars)
-    _ -> C_List $ C_Cons (substitute_template a vars) (substitute_template b vars)
+    P_Ellipsis a' -> case substitute_template a' vars of
+        Just a'' -> ???
+        Nothing -> substitute_template b vars
+    _ -> do
+        a' <- substitute_template a vars
+        b' <- substitute_template b vars
+        C_List $ C_Cons a' b'
 substitute_template (P_Ellipsis _) _ = error "invalid template"
 
 preprocess :: S_Context -> S_Object -> S_Program
