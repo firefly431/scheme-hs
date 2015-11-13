@@ -96,9 +96,9 @@ substitute_template (P_Variable name) vars = case Map.lookup name vars of
     Nothing -> Just $ C_Symbol name
 substitute_template (P_Const val) _ = Just val
 substitute_template (P_EmptyList) _ = Just $ C_List C_EmptyList
-substitute_template (P_Cons a b) vars = case a of
+substitute_template rule@(P_Cons a b) vars = case a of
     P_Ellipsis a' -> case substitute_template a' vars of
-        Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template a (unwrapOne vars))
+        Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template rule (unwrapOne vars))
         Nothing -> substitute_template b vars
     _ -> do
         a' <- substitute_template a vars
