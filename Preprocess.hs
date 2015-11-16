@@ -47,12 +47,13 @@ data P_Var =
     P_Object S_Object
   | P_ECons P_Var P_Var
   | P_Empty
+    deriving (Show)
 
 match_rule :: S_Object -> S_Rule -> Maybe (S_Pattern, Map.Map String P_Var)
 match_rule obj (C_Rule pattern repl) = fmap ((,) repl) $ match_pattern obj pattern
 
 fill_symbols :: S_Pattern -> Map.Map String P_Var
-fill_symbols (P_Variable name) = Map.singleton name $ P_Object (C_List C_EmptyList)
+fill_symbols (P_Variable name) = Map.singleton name $ P_Empty
 fill_symbols (P_Const lit) = Map.empty
 fill_symbols (P_EmptyList) = Map.empty
 fill_symbols (P_Cons a b) = Map.union (fill_symbols b) (fill_symbols a)
@@ -96,7 +97,7 @@ substitute_template (P_Variable name) vars = case Map.lookup name vars of
     Nothing -> Just $ C_Symbol name
 substitute_template (P_Const val) _ = Just val
 substitute_template (P_EmptyList) _ = Just $ C_List C_EmptyList
-substitute_template rule@(P_Cons a b) vars = case a of
+substitute_template rule@(P_Cons a b) vars = trace ("substituting, vars = " ++ (show vars)) $ case a of
     P_Ellipsis a' -> case substitute_template a' vars of
         Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template rule (unwrapOne vars))
         Nothing -> substitute_template b vars
