@@ -97,7 +97,7 @@ substitute_template (P_Variable name) vars = case Map.lookup name vars of
     Nothing -> Just $ C_Symbol name
 substitute_template (P_Const val) _ = Just val
 substitute_template (P_EmptyList) _ = Just $ C_List C_EmptyList
-substitute_template rule@(P_Cons a b) vars = trace ("substituting, vars = " ++ (show vars)) $ case a of
+substitute_template rule@(P_Cons a b) vars = case a of
     P_Ellipsis a' -> case substitute_template a' vars of
         Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template rule (unwrapOne vars))
         Nothing -> substitute_template b vars
@@ -158,11 +158,8 @@ preprocess_body context (C_List (C_Cons a b)) = case a of
         b' -> P_Sequence (preprocess context a') $ preprocess_body context b'
 preprocess_body _ _ = P_Undefined
 
-traceThis :: (Show a) => String -> (a -> String) -> a -> a
-traceThis msg show x = trace (msg ++ show x) x
-
 expand_macro :: S_Macro -> S_Object -> S_Object
-expand_macro macro obj = traceThis ("expanded " ++ (display obj) ++ " to ") display $ head $ mapMaybe (\x -> match_rule obj x >>= uncurry substitute_template) (rules macro)
+expand_macro macro obj = head $ mapMaybe (\x -> match_rule obj x >>= uncurry substitute_template) (rules macro)
 
 process_list :: S_Context -> S_Object -> S_Object -> S_Program
 process_list context (C_Symbol s) args = case s of
