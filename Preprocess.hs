@@ -10,7 +10,6 @@ module Preprocess
 import Types
 import Data.Maybe
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 import Debug.Trace
 
@@ -86,11 +85,11 @@ getFirst (P_ECons a b) = case getFirst a of
     Nothing -> getFirst b
 getFirst (P_Empty) = Nothing
 
-unwrapOne :: Set.Set String -> Map.Map String P_Var -> Map.Map String P_Var
-unwrapOne vars = Map.mapWithKey unwrapOne'
-    where unwrapOne' _ x@(P_Object a) = x
-          unwrapOne' key x@(P_ECons a b) = if Set.member key vars then b else x
-          unwrapOne' _ x@(P_Empty) = x
+unwrapOne :: Map.Map String P_Var -> Map.Map String P_Var
+unwrapOne = Map.map unwrapOne'
+    where unwrapOne' (P_Object a) = P_Object a
+          unwrapOne' (P_ECons a b) = b
+          unwrapOne' (P_Empty) = P_Empty
 
 substitute_template :: S_Pattern -> Map.Map String P_Var -> Maybe S_Object
 substitute_template (P_Variable name) vars = case Map.lookup name vars of
@@ -100,7 +99,7 @@ substitute_template (P_Const val) _ = Just val
 substitute_template (P_EmptyList) _ = Just $ C_List C_EmptyList
 substitute_template rule@(P_Cons a b) vars = case a of
     P_Ellipsis a' -> case substitute_template a' vars of
-        Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template rule (unwrapOne (Map.keysSet $ fill_symbols a') vars))
+        Just a'' -> Just $ C_List $ C_Cons a'' (fromJust $ substitute_template rule (unwrapOne vars))
         Nothing -> substitute_template b vars
     _ -> do
         a' <- substitute_template a vars
@@ -159,11 +158,8 @@ preprocess_body context (C_List (C_Cons a b)) = case a of
         b' -> P_Sequence (preprocess context a') $ preprocess_body context b'
 preprocess_body _ _ = P_Undefined
 
-traceThis :: (Show a) => String -> (a -> String) -> a -> a
-traceThis msg show x = trace (msg ++ show x) x
-
 expand_macro :: S_Macro -> S_Object -> S_Object
-expand_macro macro obj = trace ("expanding " ++ (display obj)) $ traceThis ("expanded to ") display $ head $ mapMaybe (\x -> match_rule obj x >>= uncurry substitute_template) (rules macro)
+expand_macro macro obj = head $ mapMaybe (\x -> match_rule obj x >>= uncurry substitute_template) (rules macro)
 
 process_list :: S_Context -> S_Object -> S_Object -> S_Program
 process_list context (C_Symbol s) args = case s of
