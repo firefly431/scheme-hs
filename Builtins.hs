@@ -51,6 +51,16 @@ instance Convertable S_Object where
     convert = return
     unconvert = id
 
+instance Convertable a => Convertable [a] where
+    convert (C_List (C_Cons a b)) = do
+        a' <- convert a
+        b' <- convert b
+        return (a' : b')
+    convert (C_List C_EmptyList) = return []
+    convert _ = throwError $ AssertionViolation "expected list"
+    unconvert (a:b) = C_List $ C_Cons (unconvert a) (unconvert b)
+    unconvert [] = C_List C_EmptyList
+
 asList :: (Convertable a) => S_Object -> ExceptT S_Error IO [a]
 asList (C_List C_EmptyList) = return []
 asList (C_List (C_Cons x xs)) = do
@@ -114,6 +124,14 @@ builtins = (map (fmap (lift .))
     , ("max", fmap (unconvert . maximum) . (asList :: S_Object -> ExceptT S_Error IO [B_Number]))
     , ("min", fmap (unconvert . minimum) . (asList :: S_Object -> ExceptT S_Error IO [B_Number]))
     , ("equal?", comparef (==) True (C_Bool False))
+    , ("not", (fmap $ \x -> case x of C_Bool False -> C_Bool True; _ -> C_Bool False) . extractSingleton)
+    , ("car", (>>= \x -> case x of C_List x -> (case x of C_Cons a b -> return a; _ -> throwError $ ArgumentError "empty list"); _ -> throwError $ ArgumentError "not a list") . extractSingleton)
+    , ("cdr", (>>= \x -> case x of C_List x -> (case x of C_Cons a b -> return b; _ -> throwError $ ArgumentError "empty list"); _ -> throwError $ ArgumentError "not a list") . extractSingleton)
+    , ("cons", \x -> case x of C_List (C_Cons a (C_List (C_Cons b (C_List C_EmptyList)))) -> return $ C_List (C_Cons a b); _ -> throwError $ ArgumentError "wrong number of arguments")
+    , ("list", return)
+    , ("length", (>>= fmap (C_Number . (:+ 0) . fromIntegral . length) . (asList :: S_Object -> ExceptT S_Error IO [S_Object])) . extractSingleton)
+    , ("append", foldcf (++) ([] :: [S_Object]))
+    , ("reverse", (>>= (convert >>= reverse >=> unconvert)) . extractSingleton)
     ] ++
     [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction "(continuation)" $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
     ])
