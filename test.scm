@@ -60,9 +60,10 @@
 ;;; testing "do" macro
 ; this is really not used very often
 ; does not work because it unwraps greedily
-; (do ((x 1 1) (y 1 1)) ((and (equal? x 5) (equal? y 5)) (+ x y)) (display x) (display y) (newline))
+(do ((x 1 1) (y 1 1)) ((and (equal? x 5) (equal? y 5)) (+ x y)) (display x) (display y) (newline))
 ;;; testing "letrec" macro
-; does not work because of non-lexical scope
+#|
+; this does not work because of non-lexical scope
 (assert (letrec ((is-even? (lambda (n)
                        (or (equal? 0 n)
                            (is-odd? (- 1 n)))))
@@ -70,3 +71,4 @@
                       (and (> n 0)
                            (is-even? (- 1 n))))))
     (is-odd? 11)))
+|#
