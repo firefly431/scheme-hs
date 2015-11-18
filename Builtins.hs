@@ -131,7 +131,7 @@ builtins = (map (fmap (lift .))
     , ("list", return)
     , ("length", (>>= fmap (C_Number . (:+ 0) . fromIntegral . length) . (asList :: S_Object -> ExceptT S_Error IO [S_Object])) . extractSingleton)
     , ("append", foldcf (++) ([] :: [S_Object]))
-    , ("reverse", (>>= (convert >>= reverse >=> unconvert)) . extractSingleton)
+    , ("reverse", (fmap $ unconvert . reverse) . (extractSingleton >=> (convert :: S_Object -> ExceptT S_Error IO [S_Object])))
     ] ++
     [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction "(continuation)" $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
     ])
