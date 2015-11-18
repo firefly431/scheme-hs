@@ -123,7 +123,7 @@ isList :: S_Object -> Bool
 isList (C_List _) = True
 isList _ = False
 
-traitf :: (S_Object -> Bool) -> S_Object -> ExceptT S_Error IO S_Object
+traitf :: Convertable a => (a -> Bool) -> S_Object -> ExceptT S_Error IO S_Object
 traitf f = fmap (C_Bool . all f) . asList
 
 builtins :: [(String, S_Object -> SCont)]
@@ -155,10 +155,22 @@ builtins = (map (fmap (lift .)) (
     , ("reverse", (fmap $ unconvert . reverse) . (extractSingleton >=> (convert :: S_Object -> ExceptT S_Error IO [S_Object])))
     , ("type%", fmap (C_String . stype) . extractSingleton)
     ] ++
-    map (fmap traitf) (
+    (map (fmap traitf) (
         [ ("list?", isList)
         ] ++
         map (\t -> (t ++ "?", isType t)) ["number", "null", "pair", "boolean", "char", "symbol", "string", "procedure"])) ++
+     map (fmap traitf)
+        [ ("complex?", const True)
+        , ("real?", (==0) . imagPart . unbox)
+        , ("rational?", (==0) . imagPart . unbox)
+        , ("integer?", (\n -> imagPart n == 0 && doubleIsIntegral (realPart n)) . unbox)
+        , ("positive?", (> (BoxN (0 :+ 0))))
+        , ("exact?", const False)
+        , ("inexact?", const True)
+        , ("positive?", (> (BoxN $ 0 :+ 0)))
+        , ("negative?", (> (BoxN $ 0 :+ 0)))
+        , ("zero?", (== (BoxN $ 0 :+ 0)))
+        ]) ++
     [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction "(continuation)" $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
     ])
 

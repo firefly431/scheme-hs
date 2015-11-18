@@ -14,6 +14,7 @@ module Types
 , undefinedObject
 , sappend
 , equal
+, doubleIsIntegral
 ) where
 
 import Data.Complex
