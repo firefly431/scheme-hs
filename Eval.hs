@@ -68,6 +68,7 @@ injectParams env params args = do
         zipArgs env (C_List (C_Cons (C_Symbol px) pxs)) (C_List (C_Cons ax axs)) = assignVariable env px ax >> zipArgs env pxs axs
         zipArgs env (C_List (C_Cons _ _)) (C_List C_EmptyList) = throwError (ArgumentError "not enough arguments")
         zipArgs env (C_List C_EmptyList) (C_List (C_Cons _ _)) = throwError (ArgumentError "too many arguments")
+        zipArgs env (C_Symbol p) a = assignVariable env p a
         zipArgs env _ _ = throwError (ArgumentError "invalid argument")
 
 eval :: Env -> S_Program -> SCont
