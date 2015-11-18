@@ -105,8 +105,29 @@ prettyPrint :: S_Object -> String
 prettyPrint (C_String a) = a
 prettyPrint x = display x
 
+stype :: S_Object -> String
+stype (C_Number _) = "number"
+stype (C_List C_EmptyList) = "null"
+stype (C_List _) = "pair"
+stype (C_Bool _) = "boolean"
+stype (C_Char _) = "char"
+stype (C_Symbol _) = "symbol"
+stype (C_String _) = "string"
+stype (C_Builtin _) = "procedure"
+stype (C_Lambda _ _ _) = "procedure"
+
+isType :: String -> S_Object -> Bool
+isType t = (== t) . stype
+
+isList :: S_Object -> Bool
+isList (C_List _) = True
+isList _ = False
+
+traitf :: (S_Object -> Bool) -> S_Object -> ExceptT S_Error IO S_Object
+traitf f = fmap (C_Bool . all f) . asList
+
 builtins :: [(String, S_Object -> SCont)]
-builtins = (map (fmap (lift .))
+builtins = (map (fmap (lift .)) (
     [ ("+", foldcf (+) (BoxN $ 0 :+ 0))
     , ("-", foldcnf (BoxN $ 0 :+ 0) negate (-))
     , ("*", foldcf (*) (BoxN $ 1 :+ 0))
@@ -132,7 +153,12 @@ builtins = (map (fmap (lift .))
     , ("length", (>>= fmap (C_Number . (:+ 0) . fromIntegral . length) . (asList :: S_Object -> ExceptT S_Error IO [S_Object])) . extractSingleton)
     , ("append", foldcf (++) ([] :: [S_Object]))
     , ("reverse", (fmap $ unconvert . reverse) . (extractSingleton >=> (convert :: S_Object -> ExceptT S_Error IO [S_Object])))
+    , ("type%", fmap (C_String . stype) . extractSingleton)
     ] ++
+    map (fmap traitf) (
+        [ ("list?", isList)
+        ] ++
+        map (\t -> (t ++ "?", isType t)) ["number", "null", "pair", "boolean", "char", "symbol", "string", "procedure"])) ++
     [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction "(continuation)" $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
     ])
 
