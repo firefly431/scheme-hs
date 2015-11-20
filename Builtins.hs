@@ -168,7 +168,7 @@ builtins = (map (fmap (lift .)) (
         , ("exact?", const False)
         , ("inexact?", const True)
         , ("positive?", (> (BoxN $ 0 :+ 0)))
-        , ("negative?", (> (BoxN $ 0 :+ 0)))
+        , ("negative?", (< (BoxN $ 0 :+ 0)))
         , ("zero?", (== (BoxN $ 0 :+ 0)))
         ]) ++
     [ ("call-with-current-continuation", lift . extractSingleton >=> \y -> callCC $ \x -> callFunction y (C_List (C_Cons (C_Builtin . BuiltinFunction "(continuation)" $ lift . extractSingleton >=> x) (C_List C_EmptyList))))
