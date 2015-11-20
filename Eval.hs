@@ -40,22 +40,7 @@ assignVariable env var val = do
     lift $ writeIORef varref val
 
 createClosure :: Env -> S_Object -> ExceptT S_Error IO Env
-createClosure env params = do
-    newenv <- lift $ (readIORef env >>= newIORef)
-    variables params >>= mapM_ (defineVariable newenv)
-    return newenv
-    where
-        variables :: S_Object -> ExceptT S_Error IO [String]
-        variables (C_List C_EmptyList) = return []
-        variables (C_List (C_Cons a b)) = do
-            a' <- variable a
-            b' <- variables b
-            return $ a' : b'
-        variables a@(C_Symbol _) = fmap return $ variable a
-        variables a = throwError (Syntax ("invalid parameter list " ++ (display a)))
-        variable :: S_Object -> ExceptT S_Error IO String
-        variable (C_Symbol a) = return a
-        variable a = throwError (Syntax ("invalid parameter " ++ (display a)))
+createClosure env params = lift $ (readIORef env >>= newIORef)
 
 injectParams :: Env -> S_Object -> S_Object -> ExceptT S_Error IO Env
 injectParams env params args = do
@@ -65,7 +50,7 @@ injectParams env params args = do
     where
         zipArgs :: Env -> S_Object -> S_Object -> ExceptT S_Error IO ()
         zipArgs env (C_List C_EmptyList) (C_List C_EmptyList) = return ()
-        zipArgs env (C_List (C_Cons (C_Symbol px) pxs)) (C_List (C_Cons ax axs)) = assignVariable env px ax >> zipArgs env pxs axs
+        zipArgs env (C_List (C_Cons (C_Symbol px) pxs)) (C_List (C_Cons ax axs)) = defineVariable env px >> assignVariable env px ax >> zipArgs env pxs axs
         zipArgs env (C_List (C_Cons _ _)) (C_List C_EmptyList) = throwError (ArgumentError "not enough arguments")
         zipArgs env (C_List C_EmptyList) (C_List (C_Cons _ _)) = throwError (ArgumentError "too many arguments")
         zipArgs env (C_Symbol p) a = assignVariable env p a
