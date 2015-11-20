@@ -10,6 +10,14 @@
         n
         (- n 0.5))))
 
+(define merge (lambda (l1 l2)
+    (cond
+        ((null? l1) l2)
+        ((null? l2) l1)
+        (else (let
+                ((vals (if (< (car l1) (car l2)) (list (car l1) (cdr l1) l2) (list (car l2) (cdr l2) l1))))
+            (cons (car vals) (merge (car (cdr vals)) (car (cdr (cdr vals))))))))))
+
 (define merge-sort (lambda (l)
     (cond
         ((null? l) l)
@@ -19,7 +27,7 @@
                     ((i (ratchet-floor (/ (length l) 2))))
                 (let
                         ((l2 (split-at l i)))
-                    (append (merge-sort (car l2)) (merge-sort (cdr l2)))))))))
+                    (merge (merge-sort (car l2)) (merge-sort (cdr l2)))))))))
 
 (define mylist '(3 4 2 1 5))
 
